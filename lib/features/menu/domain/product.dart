@@ -7,6 +7,7 @@ class Product {
     required this.priceCents,
     required this.category,
     this.imageUrl,
+    this.eligibleForDailyPerk = false,
   });
 
   final String id;
@@ -17,6 +18,10 @@ class Product {
   final int priceCents;
   final String category;
   final String? imageUrl;
+
+  /// Si este producto es el que cubre el beneficio de socio
+  /// ("1 café al día por $1"). Hoy: solo el Americano.
+  final bool eligibleForDailyPerk;
 
   double get price => priceCents / 100;
 }

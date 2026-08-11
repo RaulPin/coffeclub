@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../cart/application/cart_controller.dart';
+import '../../subscription/application/daily_perk.dart';
 import '../data/menu_repository.dart';
 import '../domain/product.dart';
 
@@ -55,6 +56,35 @@ class MenuScreen extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PerkTag extends StatelessWidget {
+  const _PerkTag({required this.available});
+  final bool available;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = available ? Colors.green.shade700 : const Color(0xFF6B6B6B);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(available ? Icons.local_cafe : Icons.check, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            available ? 'Tu café de socio: \$1 hoy' : 'Beneficio usado hoy',
+            style: TextStyle(
+                color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
@@ -143,6 +173,11 @@ class _ProductTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authControllerProvider);
+    final perkAvailable = ref.watch(perkAvailableTodayProvider);
+    final showPerk = product.eligibleForDailyPerk &&
+        (user?.isSubscriber ?? false);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -165,6 +200,10 @@ class _ProductTile extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(formatCents(product.priceCents),
                       style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (showPerk) ...[
+                    const SizedBox(height: 6),
+                    _PerkTag(available: perkAvailable),
+                  ],
                 ],
               ),
             ),

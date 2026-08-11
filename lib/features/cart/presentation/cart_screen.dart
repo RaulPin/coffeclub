@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/money.dart';
 import '../application/cart_controller.dart';
+import '../application/pricing.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -11,7 +12,7 @@ class CartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(cartControllerProvider);
-    final total = ref.watch(cartTotalProvider);
+    final pricing = ref.watch(cartPricingProvider);
     final cart = ref.read(cartControllerProvider.notifier);
 
     return Scaffold(
@@ -55,15 +56,24 @@ class CartScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total',
-                            style: TextStyle(fontSize: 16)),
-                        Text(formatCents(total),
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w800)),
-                      ],
+                    if (pricing.perkApplied) ...[
+                      _Line(
+                        label: 'Subtotal',
+                        value: formatCents(pricing.subtotalCents),
+                        muted: true,
+                      ),
+                      const SizedBox(height: 4),
+                      _Line(
+                        label: 'Beneficio socio (1 Americano)',
+                        value: '-${formatCents(pricing.perkDiscountCents)}',
+                        highlight: true,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    _Line(
+                      label: 'Total',
+                      value: formatCents(pricing.totalCents),
+                      bold: true,
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(
@@ -74,6 +84,41 @@ class CartScreen extends ConsumerWidget {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _Line extends StatelessWidget {
+  const _Line({
+    required this.label,
+    required this.value,
+    this.bold = false,
+    this.muted = false,
+    this.highlight = false,
+  });
+
+  final String label;
+  final String value;
+  final bool bold;
+  final bool muted;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = highlight
+        ? Colors.green.shade700
+        : (muted ? const Color(0xFF6B6B6B) : Colors.black);
+    final style = TextStyle(
+      fontSize: bold ? 18 : 15,
+      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+      color: color,
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: style),
+        Text(value, style: style),
+      ],
     );
   }
 }

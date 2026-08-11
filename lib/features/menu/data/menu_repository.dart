@@ -32,6 +32,7 @@ class MockMenuRepository implements MenuRepository {
         description: 'Espresso con agua caliente.',
         priceCents: 4000,
         category: 'Café',
+        eligibleForDailyPerk: true, // beneficio de socio: 1 al día por $1
       ),
       Product(
         id: 'latte',

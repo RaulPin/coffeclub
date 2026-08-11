@@ -50,12 +50,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Accede a 1 café al día por solo \$1. Disponible 24/7.',
+              'Accede a 1 café Americano al día por solo \$1. Disponible 24/7.',
               style: TextStyle(color: Color(0xFF6B6B6B), fontSize: 16),
             ),
             const SizedBox(height: 24),
             ...const [
-              _Benefit('1 café al día a precio de socio'),
+              _Benefit('1 Americano al día por \$1'),
               _Benefit('Acceso 24/7 a la sucursal'),
               _Benefit('Pedidos y recogida sin filas'),
               _Benefit('Cancela cuando quieras'),

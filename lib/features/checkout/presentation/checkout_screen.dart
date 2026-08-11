@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../cart/application/cart_controller.dart';
+import '../../cart/application/pricing.dart';
 import '../../orders/data/orders_store.dart';
+import '../../subscription/application/daily_perk.dart';
 import '../data/payment_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -21,9 +23,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _pay() async {
     setState(() => _loading = true);
     final items = ref.read(cartControllerProvider);
-    final total = ref.read(cartTotalProvider);
+    final pricing = ref.read(cartPricingProvider);
 
-    final result = await ref.read(paymentServiceProvider).chargeOnce(total);
+    final result =
+        await ref.read(paymentServiceProvider).chargeOnce(pricing.totalCents);
     if (!mounted) return;
 
     if (!result.success) {
@@ -34,10 +37,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
+    // Si se usó el beneficio del Americano, márcalo consumido por hoy.
+    // (En producción, esto lo confirma el servidor al registrar la orden.)
+    if (pricing.perkApplied) {
+      ref.read(lastPerkRedemptionProvider.notifier).state = DateTime.now();
+    }
+
     // Pago OK -> crear la orden (queda en cola para el empleado).
     final userId = ref.read(authControllerProvider)?.id ?? 'demo-user';
-    final orderId =
-        ref.read(ordersStoreProvider.notifier).create(items, total, userId);
+    final orderId = ref
+        .read(ordersStoreProvider.notifier)
+        .create(items, pricing.totalCents, userId);
     ref.read(activeOrderIdProvider.notifier).state = orderId;
     ref.read(cartControllerProvider.notifier).clear();
 
@@ -46,7 +56,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final total = ref.watch(cartTotalProvider);
+    final pricing = ref.watch(cartPricingProvider);
+    final total = pricing.totalCents;
 
     return Scaffold(
       appBar: AppBar(title: const Text('PAGO')),
@@ -69,6 +80,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ),
             const Spacer(),
+            if (pricing.perkApplied) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Beneficio socio (1 Americano)',
+                      style: TextStyle(color: Colors.green.shade700)),
+                  Text('-${formatCents(pricing.perkDiscountCents)}',
+                      style: TextStyle(color: Colors.green.shade700)),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
