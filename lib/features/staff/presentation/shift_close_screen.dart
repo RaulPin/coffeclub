@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/utils/money.dart';
-import '../../orders/data/orders_store.dart';
+import '../../orders/data/orders_repository.dart';
+import '../../orders/domain/order.dart';
 import '../application/shift_controller.dart';
 import '../domain/shift.dart';
 
@@ -15,7 +16,8 @@ class ShiftCloseScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shift = ref.watch(shiftControllerProvider);
-    final orders = ref.watch(ordersStoreProvider);
+    final List<CoffeeOrder> orders =
+        ref.watch(allOrdersProvider).valueOrNull ?? const [];
     final pendingPickup = ref.watch(unfinishedOrdersProvider);
 
     if (shift == null) {

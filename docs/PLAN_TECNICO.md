@@ -199,13 +199,17 @@ UI navegable end-to-end con datos mock, **de los dos lados**:
 Ambos comparten un store de órdenes en memoria (simula Firestore). Corre sin
 backend.
 
-### Fase 1 — MVP funcional (2–4 semanas)
-- [ ] Proyecto Firebase + `flutterfire configure`.
-- [ ] Firebase Auth real (Google, Apple, Facebook).
-- [ ] Menú desde Firestore.
-- [ ] Pago único con Stripe + Cloud Function + webhook.
-- [ ] Órdenes en Firestore con estado en tiempo real.
-- [ ] Contador real basado en `estimatedReadyAt`.
+### Fase 1 — MVP funcional (código listo; requiere configurar servicios)
+Ver **`docs/FIREBASE_SETUP.md`** para activarlo. El código ya está integrado
+detrás del flag `AppConfig.useMockBackend`:
+- [x] Integración Firebase Auth (Google/Apple/Facebook) — `FirebaseAuthRepository`.
+- [x] Menú desde Firestore — `FirestoreMenuRepository`.
+- [x] Pago con Stripe + Cloud Functions + webhook (`createPaymentIntent`,
+      `stripeWebhook`).
+- [x] Órdenes en Firestore en tiempo real — `FirestoreOrdersRepository`.
+- [x] Beneficio de socio validado en el servidor.
+- [ ] Configurar proyecto Firebase, claves de Stripe y desplegar (tu paso).
+- [ ] Pruebas end-to-end con el backend real en dispositivo.
 
 ### Fase 2 — Suscripción, casilleros y operación (2–3 semanas)
 - [ ] Suscripción de socio con Stripe Billing.

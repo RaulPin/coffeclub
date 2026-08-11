@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/money.dart';
-import '../../orders/data/orders_store.dart';
+import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
 import '../application/shift_controller.dart';
 
@@ -14,7 +14,8 @@ class StaffDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shift = ref.watch(shiftControllerProvider);
-    final queue = ref.watch(orderQueueProvider);
+    final List<CoffeeOrder> queue =
+        ref.watch(orderQueueProvider).valueOrNull ?? const [];
 
     return Scaffold(
       appBar: AppBar(
@@ -50,7 +51,7 @@ class _OrderCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final store = ref.read(ordersStoreProvider.notifier);
+    final repo = ref.read(ordersRepositoryProvider);
 
     return Card(
       child: Padding(
@@ -76,14 +77,12 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 12),
             if (order.status == OrderStatus.pending)
               ElevatedButton(
-                onPressed: () => store.startPreparing(order.id),
+                onPressed: () => repo.startPreparing(order.id),
                 child: const Text('Empezar a preparar'),
               )
             else if (order.status == OrderStatus.preparing)
               ElevatedButton.icon(
-                onPressed: () async {
-                  await store.markReady(order.id);
-                },
+                onPressed: () => repo.markReady(order.id),
                 icon: const Icon(Icons.inventory_2_outlined),
                 label: const Text('Marcar listo y asignar casillero'),
               )

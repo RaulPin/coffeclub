@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
 import '../domain/product.dart';
+import 'firestore_menu_repository.dart';
 
 /// Fuente de datos del menú. En producción, lee de Firestore.
 abstract interface class MenuRepository {
@@ -134,7 +136,8 @@ class MockMenuRepository implements MenuRepository {
 }
 
 final menuRepositoryProvider = Provider<MenuRepository>((ref) {
-  return MockMenuRepository();
+  if (AppConfig.useMockBackend) return MockMenuRepository();
+  return FirestoreMenuRepository();
 });
 
 final menuProvider = FutureProvider<List<Product>>((ref) {

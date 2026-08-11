@@ -1,6 +1,10 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
-/// Resultado de un intento de pago.
+import '../../../core/config/app_config.dart';
+
+/// Resultado de un intento de pago/suscripción.
 class PaymentResult {
   const PaymentResult({required this.success, this.reference, this.error});
   final bool success;
@@ -8,24 +12,14 @@ class PaymentResult {
   final String? error;
 }
 
-/// Contrato de pagos. La implementación real usa Stripe.
+/// Servicio de suscripción de socio (membresía recurrente).
 abstract interface class PaymentService {
-  /// Cobra un monto único (en centavos).
-  Future<PaymentResult> chargeOnce(int amountCents);
-
-  /// Inicia una suscripción recurrente de socio.
+  /// Inicia la suscripción recurrente de socio.
   Future<PaymentResult> startSubscription();
 }
 
-/// Implementación de ejemplo: siempre aprueba.
+/// Implementación de demo: siempre aprueba.
 class MockPaymentService implements PaymentService {
-  @override
-  Future<PaymentResult> chargeOnce(int amountCents) async {
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    return PaymentResult(
-        success: true, reference: 'mock_${DateTime.now().millisecondsSinceEpoch}');
-  }
-
   @override
   Future<PaymentResult> startSubscription() async {
     await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -33,15 +27,41 @@ class MockPaymentService implements PaymentService {
   }
 }
 
-// ---------------------------------------------------------------------------
-// TODO(stripe): Implementación real.
-// El flujo seguro es:
-//   1. App pide a una Cloud Function crear un PaymentIntent (monto en servidor).
-//   2. La función devuelve el `clientSecret`.
-//   3. App confirma el pago con flutter_stripe (Payment Sheet).
-// Nunca calcules montos ni uses la secret key en el cliente.
-// ---------------------------------------------------------------------------
+/// Suscripción real con Stripe Billing.
+///   1. Cloud Function `createSubscription` crea el Customer + Subscription y
+///      devuelve el `clientSecret` del primer pago.
+///   2. Se muestra el Payment Sheet para cobrar/guardar el método de pago.
+///   3. El webhook marca al usuario como socio (`isSubscriber = true`).
+class StripePaymentService implements PaymentService {
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+
+  @override
+  Future<PaymentResult> startSubscription() async {
+    try {
+      final response =
+          await _functions.httpsCallable('createSubscription').call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final clientSecret = data['clientSecret'] as String;
+
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: AppConfig.appName,
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+
+      return const PaymentResult(success: true);
+    } on StripeException catch (e) {
+      return PaymentResult(
+          success: false, error: e.error.localizedMessage ?? 'Pago cancelado');
+    } catch (e) {
+      return PaymentResult(success: false, error: e.toString());
+    }
+  }
+}
 
 final paymentServiceProvider = Provider<PaymentService>((ref) {
-  return MockPaymentService();
+  if (AppConfig.useMockBackend) return MockPaymentService();
+  return StripePaymentService();
 });

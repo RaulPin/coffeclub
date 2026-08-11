@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
 import '../data/auth_repository.dart';
+import '../data/firebase_auth_repository.dart';
 import '../domain/app_user.dart';
 
-/// Provee la implementación de `AuthRepository`.
-/// Cambia aquí a `FirebaseAuthRepository()` cuando integres Firebase.
+/// Provee la implementación de `AuthRepository` según el modo.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return MockAuthRepository();
+  if (AppConfig.useMockBackend) return MockAuthRepository();
+  return FirebaseAuthRepository();
 });
 
 /// Estado de la sesión: null = no autenticado.

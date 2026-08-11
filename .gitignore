@@ -52,9 +52,12 @@ app.*.map.json
 **/ios/.symlinks/
 
 # --- Secretos / configuración sensible (NO subir a git) ---
-lib/core/config/firebase_options.dart
+# Nota: lib/firebase_options.dart NO es secreto (config de cliente), se versiona.
+# Lo que sí se ignora son los archivos de plataforma y llaves de firma/servidor:
 google-services.json
 GoogleService-Info.plist
+functions/.env
+functions/serviceAccountKey.json
 .env
 *.keystore
 *.jks

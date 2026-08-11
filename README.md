@@ -59,16 +59,25 @@ correspondiente, sin tocar la UI.
 
 ---
 
-## 🔌 Pasar a producción
+## 🔌 Pasar a producción (Firebase + Stripe)
 
-Ver el plan completo en [`docs/PLAN_TECNICO.md`](docs/PLAN_TECNICO.md). En resumen:
+La integración real **ya está implementada** detrás del flag
+`AppConfig.useMockBackend`. Para activarla sigue la guía paso a paso:
+**[`docs/FIREBASE_SETUP.md`](docs/FIREBASE_SETUP.md)**.
 
-1. **Firebase**: `flutterfire configure`, descomenta las dependencias en
-   `pubspec.yaml`, implementa `FirebaseAuthRepository` y pon
-   `AppConfig.useMockBackend = false`.
-2. **Stripe**: implementa `PaymentService` real con `flutter_stripe` +
-   Cloud Functions (el `PaymentIntent` se crea en el servidor).
-3. **Lockers**: implementa `LockerService` según el hardware que elijas.
+En resumen:
+1. `flutterfire configure` (genera `lib/firebase_options.dart`).
+2. Habilita Auth social, despliega reglas de Firestore y puebla datos
+   (`scripts/seed.mjs`).
+3. Configura Stripe (claves + price de la membresía) y despliega las Cloud
+   Functions (`functions/`).
+4. Pon `AppConfig.useMockBackend = false` y `flutter run`.
+
+**Backend** (carpeta `functions/`): pagos, webhook de Stripe, asignación/apertura
+de casilleros y cierre de caja. Reglas de seguridad en `firestore.rules`.
+
+**Lockers**: implementa el `TODO(hardware)` en `markOrderReady`/`openLocker`
+según el hardware que elijas (interfaz `LockerService` en el cliente).
 
 ---
 

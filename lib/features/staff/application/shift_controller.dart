@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../orders/data/orders_store.dart';
+import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
 import '../domain/shift.dart';
 
@@ -28,7 +28,8 @@ class ShiftController extends StateNotifier<Shift?> {
     if (shift == null) return null;
 
     final closedAt = DateTime.now();
-    final orders = _ref.read(ordersStoreProvider);
+    final List<CoffeeOrder> orders =
+        _ref.read(allOrdersProvider).valueOrNull ?? const [];
 
     // Órdenes creadas durante el turno (fuente de verdad: el store/Firestore).
     final duringShift = orders.where((o) =>
@@ -55,6 +56,7 @@ final shiftControllerProvider =
 
 /// Órdenes pendientes de recoger que siguen ocupando un casillero al cierre.
 final unfinishedOrdersProvider = Provider<List<CoffeeOrder>>((ref) {
-  final orders = ref.watch(ordersStoreProvider);
+  final List<CoffeeOrder> orders =
+      ref.watch(allOrdersProvider).valueOrNull ?? const [];
   return orders.where((o) => o.status == OrderStatus.ready).toList();
 });

@@ -40,22 +40,3 @@ class MockAuthRepository implements AuthRepository {
     _user = null;
   }
 }
-
-// ---------------------------------------------------------------------------
-// TODO(firebase): Implementación real con Firebase Auth.
-//
-// class FirebaseAuthRepository implements AuthRepository {
-//   final _auth = FirebaseAuth.instance;
-//
-//   @override
-//   Future<AppUser> signInWith(SocialProvider provider) async {
-//     final credential = switch (provider) {
-//       SocialProvider.google => await _googleCredential(),
-//       SocialProvider.apple  => await _appleCredential(),
-//       SocialProvider.facebook => await _facebookCredential(),
-//     };
-//     final result = await _auth.signInWithCredential(credential);
-//     // Mapear result.user -> AppUser, leer isSubscriber de Firestore.
-//   }
-// }
-// ---------------------------------------------------------------------------

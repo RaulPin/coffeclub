@@ -6,9 +6,9 @@ import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../cart/application/cart_controller.dart';
 import '../../cart/application/pricing.dart';
-import '../../orders/data/orders_store.dart';
+import '../../orders/data/orders_repository.dart';
 import '../../subscription/application/daily_perk.dart';
-import '../data/payment_service.dart';
+import '../data/checkout_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -24,15 +24,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     setState(() => _loading = true);
     final items = ref.read(cartControllerProvider);
     final pricing = ref.read(cartPricingProvider);
+    final userId = ref.read(authControllerProvider)?.id ?? 'demo-user';
 
-    final result =
-        await ref.read(paymentServiceProvider).chargeOnce(pricing.totalCents);
+    final result = await ref.read(checkoutServiceProvider).placeOrder(
+          items: items,
+          amountCents: pricing.totalCents,
+          userId: userId,
+        );
     if (!mounted) return;
 
-    if (!result.success) {
+    if (!result.success || result.orderId == null) {
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pago rechazado: ${result.error ?? ''}')),
+        SnackBar(content: Text('Pago no completado: ${result.error ?? ''}')),
       );
       return;
     }
@@ -43,12 +47,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ref.read(lastPerkRedemptionProvider.notifier).state = DateTime.now();
     }
 
-    // Pago OK -> crear la orden (queda en cola para el empleado).
-    final userId = ref.read(authControllerProvider)?.id ?? 'demo-user';
-    final orderId = ref
-        .read(ordersStoreProvider.notifier)
-        .create(items, pricing.totalCents, userId);
-    ref.read(activeOrderIdProvider.notifier).state = orderId;
+    ref.read(activeOrderIdProvider.notifier).state = result.orderId;
     ref.read(cartControllerProvider.notifier).clear();
 
     if (mounted) context.go('/order');

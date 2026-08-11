@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/orders_store.dart';
+import '../data/orders_repository.dart';
 import '../domain/order.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -26,7 +26,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
   void _tick() {
-    final order = ref.read(activeOrderProvider);
+    final order = ref.read(activeOrderProvider).valueOrNull;
     if (order == null) return;
     final left = order.estimatedReadyAt.difference(DateTime.now());
     setState(() => _remaining = left.isNegative ? Duration.zero : left);
@@ -46,7 +46,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final order = ref.watch(activeOrderProvider);
+    final order = ref.watch(activeOrderProvider).valueOrNull;
 
     if (order == null) {
       return Scaffold(
@@ -121,9 +121,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             const Spacer(),
             if (order.status == OrderStatus.ready)
               ElevatedButton.icon(
-                onPressed: () => ref
-                    .read(ordersStoreProvider.notifier)
-                    .pickUp(order.id),
+                onPressed: () =>
+                    ref.read(ordersRepositoryProvider).pickUp(order.id),
                 icon: const Icon(Icons.lock_open),
                 label: Text('Abrir casillero ${order.lockerNumber}'),
               )

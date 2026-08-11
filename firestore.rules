@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isStaff() {
+      return isSignedIn() && request.auth.token.staff == true;
+    }
+
+    // Menú: lectura pública para clientes autenticados; escritura solo backend/staff.
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+
+    // Usuarios: cada quien lee/actualiza su perfil, pero NO campos sensibles.
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // isSubscriber y lastPerkDate solo los cambia el backend (Cloud Functions
+      // con Admin SDK, que ignora estas reglas). El cliente no puede tocarlos.
+      allow update: if isSignedIn() && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data)
+              .affectedKeys().hasAny(['isSubscriber', 'lastPerkDate']);
+    }
+
+    // Órdenes: el socio lee las suyas; el staff lee todas. Los cambios de estado,
+    // montos y asignación de casillero los hace SIEMPRE el backend.
+    match /orders/{orderId} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // El staff puede avanzar a "preparing"; todo lo demás (crear, montos,
+      // ready + casillero, pickedUp) pasa por Cloud Functions.
+      allow update: if isStaff()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'preparing';
+      allow create, delete: if false;
+    }
+
+    // Casilleros y turnos: solo backend/staff.
+    match /lockers/{lockerId} {
+      allow read: if isStaff();
+      allow write: if false; // solo backend
+    }
+    match /shifts/{shiftId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+    }
+  }
+}
