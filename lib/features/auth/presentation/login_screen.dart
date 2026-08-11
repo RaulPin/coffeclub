@@ -68,6 +68,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   icon: Icons.facebook,
                   onTap: () => _signIn(SocialProvider.facebook),
                 ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.go('/staff'),
+                  child: const Text('Acceso empleados (estación de tienda)'),
+                ),
               ],
               const SizedBox(height: 40),
             ],

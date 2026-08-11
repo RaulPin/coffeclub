@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/order_repository.dart';
+import '../data/orders_store.dart';
 import '../domain/order.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -92,7 +92,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            if (!isReady) ...[
+            if (order.status == OrderStatus.pending) ...[
+              const Center(child: Text('Recibimos tu pedido')),
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 16),
+              const Center(
+                child: Text('En cola, pronto empezaremos a prepararlo.',
+                    style: TextStyle(color: Color(0xFF6B6B6B))),
+              ),
+            ] else if (!isReady) ...[
               const Center(child: Text('Estará listo en')),
               const SizedBox(height: 8),
               Center(
@@ -108,19 +117,20 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     size: 96, color: Colors.green),
               ),
             const SizedBox(height: 40),
-            _LockerCard(order: order),
+            if (order.lockerNumber != null) _LockerCard(order: order),
             const Spacer(),
             if (order.status == OrderStatus.ready)
               ElevatedButton.icon(
-                onPressed: () =>
-                    ref.read(activeOrderProvider.notifier).openLocker(),
+                onPressed: () => ref
+                    .read(ordersStoreProvider.notifier)
+                    .pickUp(order.id),
                 icon: const Icon(Icons.lock_open),
                 label: Text('Abrir casillero ${order.lockerNumber}'),
               )
             else if (order.status == OrderStatus.pickedUp)
               ElevatedButton(
                 onPressed: () {
-                  ref.read(activeOrderProvider.notifier).clear();
+                  ref.read(activeOrderIdProvider.notifier).state = null;
                   context.go('/menu');
                 },
                 child: const Text('¡Disfruta! Volver al menú'),

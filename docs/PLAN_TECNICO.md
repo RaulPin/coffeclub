@@ -80,6 +80,13 @@ orders/{orderId}
 lockers/{lockerNumber}
   ├─ status: free | reserved | occupied
   └─ currentOrderId: string | null
+
+shifts/{shiftId}
+  ├─ employeeName: string
+  ├─ startedAt: timestamp
+  ├─ endedAt: timestamp | null   (null = turno abierto)
+  ├─ ordersCount: int            (se calcula al cerrar)
+  └─ totalSalesCents: int        (cierre de caja)
 ```
 
 La app **escucha** `orders/{orderId}` en tiempo real: cuando el backend cambia
@@ -110,6 +117,48 @@ Nunca calcular montos ni usar la secret key en el cliente:
 
 ---
 
+## 5.4 App de empleado (estación de tienda)
+
+El sistema tiene **dos extremos sobre el mismo backend**:
+
+- **App cliente** (móvil): crea la orden y sigue su estado.
+- **App empleado** (tablet en tienda): recibe las órdenes en tiempo real, las
+  prepara y las coloca en un casillero.
+
+No hay envío directo entre apps: la app cliente **escribe** en `orders/` y la
+app empleado **escucha** esa colección (`snapshots()` de Firestore). Cualquier
+cambio se propaga solo a ambos lados.
+
+**Recomendación**: un solo proyecto Flutter con dos experiencias por rol. La app
+de empleado corre en una tablet dedicada. Reutiliza modelos, tema y backend.
+
+### Ciclo de vida de un pedido (dos extremos)
+
+```
+[Cliente] paga        → orders/{id}.status = pending          (en cola)
+[Empleado] toma       → status = preparing
+[Empleado] termina    → status = ready + lockerNumber asignado
+[Cliente] recoge      → abre casillero → status = pickedUp
+```
+
+### Turnos y cierre de caja
+
+- El empleado **inicia turno** (login) → se crea `shifts/{id}` abierto.
+- Trabaja sobre la cola de pedidos.
+- Al terminar, **cierre de caja**: se calculan órdenes y ventas del turno
+  (fuente de verdad: `orders/` en la ventana del turno, no un contador manual),
+  se cierra `shifts/{id}` y se muestran los casilleros aún ocupados para el
+  relevo.
+- El **siguiente empleado inicia sesión** y abre un turno nuevo; el estado de
+  pedidos y casilleros es compartido, así que continúa sin perder contexto.
+
+> En producción, el paso `preparing → ready` puede ser manual (el empleado lo
+> marca) o disparar la apertura/asignación del casillero vía Cloud Function.
+> Los totales del cierre deben calcularse en el servidor para evitar
+> manipulación desde el cliente.
+
+---
+
 ## 6. Integración de casilleros (pendiente de definir hardware)
 
 Diseñamos la app agnóstica con la interfaz `LockerService`. Opciones:
@@ -128,8 +177,12 @@ después sin reescribir la app.
 ## 7. Roadmap por fases
 
 ### Fase 0 — Scaffold (✅ hecho)
-UI navegable end-to-end con datos mock. Login → menú → carrito → pago →
-contador + casillero. Corre sin backend.
+UI navegable end-to-end con datos mock, **de los dos lados**:
+- Cliente: login → menú → carrito → pago → contador + casillero.
+- Empleado: inicio de turno → cola de pedidos → preparar → asignar casillero →
+  cierre de caja y relevo de turno.
+Ambos comparten un store de órdenes en memoria (simula Firestore). Corre sin
+backend.
 
 ### Fase 1 — MVP funcional (2–4 semanas)
 - [ ] Proyecto Firebase + `flutterfire configure`.
@@ -139,11 +192,13 @@ contador + casillero. Corre sin backend.
 - [ ] Órdenes en Firestore con estado en tiempo real.
 - [ ] Contador real basado en `estimatedReadyAt`.
 
-### Fase 2 — Suscripción y casilleros (2–3 semanas)
+### Fase 2 — Suscripción, casilleros y operación (2–3 semanas)
 - [ ] Suscripción de socio con Stripe Billing.
 - [ ] Asignación de casillero (transacción Firestore).
 - [ ] Integración real del hardware de lockers.
 - [ ] Notificaciones push (FCM) "pedido listo".
+- [ ] App de empleado sobre Firestore en tiempo real (cola de pedidos).
+- [ ] Turnos y cierre de caja calculados en el servidor (Cloud Function).
 
 ### Fase 3 — Producción (2–3 semanas)
 - [ ] Panel/rol para el staff (marcar pedidos listos) o automatización.

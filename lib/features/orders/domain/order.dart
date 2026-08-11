@@ -26,6 +26,7 @@ class CoffeeOrder {
     required this.status,
     required this.createdAt,
     required this.estimatedReadyAt,
+    required this.userId,
     this.lockerNumber,
     this.lockerPin,
   });
@@ -35,6 +36,9 @@ class CoffeeOrder {
   final int totalCents;
   final OrderStatus status;
   final DateTime createdAt;
+
+  /// Id del socio que hizo el pedido.
+  final String userId;
 
   /// Momento estimado en que el pedido estará listo (para el contador).
   final DateTime estimatedReadyAt;
@@ -59,6 +63,7 @@ class CoffeeOrder {
         status: status ?? this.status,
         createdAt: createdAt,
         estimatedReadyAt: estimatedReadyAt,
+        userId: userId,
         lockerNumber: lockerNumber ?? this.lockerNumber,
         lockerPin: lockerPin ?? this.lockerPin,
       );

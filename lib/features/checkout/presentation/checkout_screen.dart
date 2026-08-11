@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/money.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../cart/application/cart_controller.dart';
-import '../../orders/data/order_repository.dart';
+import '../../orders/data/orders_store.dart';
 import '../data/payment_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -33,10 +34,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
-    // Pago OK -> crear pedido y asignar casillero.
-    await ref
-        .read(activeOrderProvider.notifier)
-        .createOrder(items, total);
+    // Pago OK -> crear la orden (queda en cola para el empleado).
+    final userId = ref.read(authControllerProvider)?.id ?? 'demo-user';
+    final orderId =
+        ref.read(ordersStoreProvider.notifier).create(items, total, userId);
+    ref.read(activeOrderIdProvider.notifier).state = orderId;
     ref.read(cartControllerProvider.notifier).clear();
 
     if (mounted) context.go('/order');
