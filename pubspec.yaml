@@ -1,0 +1,49 @@
+name: coffeclub
+description: "The Club Coffe - App de membresía de café con pedidos y recogida en lockers."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Navegación
+  go_router: ^14.2.7
+
+  # Utilidades
+  intl: ^0.19.0
+
+  # --- Backend (Firebase) ---
+  # Descomenta cuando configures Firebase con `flutterfire configure`.
+  # firebase_core: ^3.6.0
+  # firebase_auth: ^5.3.1
+  # cloud_firestore: ^5.4.4
+  # firebase_messaging: ^15.1.3
+
+  # --- Auth social ---
+  # google_sign_in: ^6.2.1
+  # sign_in_with_apple: ^6.1.3
+  # flutter_facebook_auth: ^7.1.1
+
+  # --- Pagos ---
+  # flutter_stripe: ^11.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  # assets:
+  #   - assets/images/
