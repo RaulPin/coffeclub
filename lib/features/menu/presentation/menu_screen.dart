@@ -13,7 +13,7 @@ class MenuScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final menu = ref.watch(menuProvider);
+    final menu = ref.watch(menuByCategoryProvider);
     final user = ref.watch(authControllerProvider);
     final cartCount = ref.watch(cartControllerProvider).fold<int>(
           0,
@@ -37,16 +37,57 @@ class MenuScreen extends ConsumerWidget {
       body: menu.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
-        data: (products) => ListView(
+        data: (grouped) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
             if (user != null && !user.isSubscriber)
               _SubscriptionBanner(
                 onTap: () => context.push('/subscription'),
               ),
-            ...products.map((p) => _ProductTile(product: p)),
+            for (final entry in grouped.entries) ...[
+              _CategoryHeader(
+                title: entry.key,
+                subtitle: entry.key == 'Pizza'
+                    ? '30 cm · 6 rebanadas · ideal para 2 · todas \$130'
+                    : null,
+              ),
+              ...entry.value.map((p) => _ProductTile(product: p)),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CategoryHeader extends StatelessWidget {
+  const _CategoryHeader({required this.title, this.subtitle});
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(subtitle!,
+                style: const TextStyle(color: Color(0xFF6B6B6B), fontSize: 12)),
+          ],
+          const SizedBox(height: 4),
+          Container(height: 2, width: 40, color: Colors.black),
+        ],
       ),
     );
   }

@@ -104,9 +104,18 @@ Nunca calcular montos ni usar la secret key en el cliente:
 4. **Webhook** de Stripe → Cloud Function marca la orden como pagada. **Esta es
    la fuente de verdad**, no la respuesta del cliente.
 
-### 5.2 Suscripción
+### 5.2 Suscripción y beneficio de socio
 - Stripe **Billing** con un producto/precio recurrente.
 - Webhook `customer.subscription.updated` → actualiza `isSubscriber`.
+
+**Regla de negocio del menú**: el menú es **café + pizza**. El beneficio de
+socio es **1 café al día por $1**. Esto implica una lógica de *entitlement*:
+- El socio tiene derecho a **1 café con precio de socio ($1) por día**.
+- El café adicional del día, y todo lo demás (pizzas, postre, otras bebidas),
+  se cobra a precio normal.
+- El "1 café al día" debe validarse **en el servidor** (Cloud Function) leyendo
+  los pedidos del día del usuario, no en el cliente. Guardar `lastPerkDate` o
+  contar pedidos con perk en `orders/` evita que se abuse del beneficio.
 
 ### 5.3 Asignación y apertura de casillero
 1. Orden pagada → Cloud Function busca un `locker` libre y lo reserva
