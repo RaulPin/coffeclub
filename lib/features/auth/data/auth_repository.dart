@@ -26,7 +26,7 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<AppUser> signInWith(SocialProvider provider) async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
-    _user = AppUser(
+    _user = const AppUser(
       id: 'demo-user',
       name: 'Socio Demo',
       email: 'socio@theclubcoffe.mx',
