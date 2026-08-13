@@ -3,12 +3,16 @@ class Shift {
   const Shift({
     required this.id,
     required this.employeeName,
+    required this.branchId,
     required this.startedAt,
     this.endedAt,
   });
 
   final String id;
   final String employeeName;
+
+  /// Sucursal en la que trabaja el empleado durante el turno.
+  final String branchId;
   final DateTime startedAt;
 
   /// Null mientras el turno sigue abierto.
@@ -19,6 +23,7 @@ class Shift {
   Shift close(DateTime at) => Shift(
         id: id,
         employeeName: employeeName,
+        branchId: branchId,
         startedAt: startedAt,
         endedAt: at,
       );

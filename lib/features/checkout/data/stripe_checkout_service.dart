@@ -21,10 +21,12 @@ class StripeCheckoutService implements CheckoutService {
     required List<CartItem> items,
     required int amountCents, // ignorado: el servidor es la fuente de verdad
     required String userId, // se toma del token de auth en el servidor
+    required String branchId,
   }) async {
     try {
       final response =
           await _functions.httpsCallable('createPaymentIntent').call({
+        'branchId': branchId,
         'items': [
           for (final item in items)
             {'productId': item.product.id, 'quantity': item.quantity},

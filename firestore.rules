@@ -5,40 +5,63 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+    // Rol del personal, guardado como custom claim: 'employee' | 'admin'.
+    function role() {
+      return request.auth.token.role;
+    }
     function isStaff() {
-      return isSignedIn() && request.auth.token.staff == true;
+      return isSignedIn() && (role() == 'employee' || role() == 'admin');
+    }
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+    function myBranch() {
+      return request.auth.token.branchId;
     }
 
-    // Menú: lectura pública para clientes autenticados; escritura solo backend/staff.
+    // Sucursales: lectura para cualquier sesión; escritura solo admin.
+    match /branches/{branchId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Menú: lectura para clientes autenticados; escritura solo admin.
     match /products/{productId} {
       allow read: if isSignedIn();
-      allow write: if isStaff();
+      allow write: if isAdmin();
     }
 
-    // Usuarios: cada quien lee/actualiza su perfil, pero NO campos sensibles.
+    // Ficha del personal (rol y sucursal). Solo lectura del propio/staff.
+    match /staff/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    // Usuarios (clientes): cada quien su perfil, sin tocar campos sensibles.
     match /users/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // isSubscriber y lastPerkDate solo los cambia el backend (Cloud Functions
-      // con Admin SDK, que ignora estas reglas). El cliente no puede tocarlos.
       allow update: if isSignedIn() && request.auth.uid == userId
         && !request.resource.data.diff(resource.data)
               .affectedKeys().hasAny(['isSubscriber', 'lastPerkDate']);
     }
 
-    // Órdenes: el socio lee las suyas; el staff lee todas. Los cambios de estado,
-    // montos y asignación de casillero los hace SIEMPRE el backend.
+    // Órdenes: admin ve todas; el empleado solo las de SU sucursal; el socio
+    // solo las suyas. Montos/casillero/creación pasan por Cloud Functions.
     match /orders/{orderId} {
-      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      // El staff puede avanzar a "preparing"; todo lo demás (crear, montos,
-      // ready + casillero, pickedUp) pasa por Cloud Functions.
+      allow read: if isAdmin()
+        || (isStaff() && resource.data.branchId == myBranch())
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // El empleado de la sucursal puede avanzar a "preparing"; lo demás,
+      // por Cloud Functions.
       allow update: if isStaff()
+        && resource.data.branchId == myBranch()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && request.resource.data.status == 'preparing';
       allow create, delete: if false;
     }
 
-    // Casilleros y turnos: solo backend/staff.
+    // Casilleros y turnos: solo backend/staff (el admin también es staff).
     match /lockers/{lockerId} {
       allow read: if isStaff();
       allow write: if false; // solo backend

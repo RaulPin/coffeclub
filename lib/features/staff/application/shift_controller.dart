@@ -11,12 +11,13 @@ class ShiftController extends StateNotifier<Shift?> {
 
   final Ref _ref;
 
-  /// El empleado inicia sesión y abre su turno.
-  void startShift(String employeeName) {
+  /// El empleado inicia sesión y abre su turno en su sucursal.
+  void startShift(String employeeName, String branchId) {
     final now = DateTime.now();
     state = Shift(
       id: 'shift_${now.millisecondsSinceEpoch}',
       employeeName: employeeName,
+      branchId: branchId,
       startedAt: now,
     );
   }
@@ -31,8 +32,9 @@ class ShiftController extends StateNotifier<Shift?> {
     final List<CoffeeOrder> orders =
         _ref.read(allOrdersProvider).valueOrNull ?? const [];
 
-    // Órdenes creadas durante el turno (fuente de verdad: el store/Firestore).
+    // Órdenes de la sucursal creadas durante el turno.
     final duringShift = orders.where((o) =>
+        o.branchId == shift.branchId &&
         !o.createdAt.isBefore(shift.startedAt) &&
         !o.createdAt.isAfter(closedAt));
 
@@ -54,9 +56,14 @@ final shiftControllerProvider =
   return ShiftController(ref);
 });
 
-/// Órdenes pendientes de recoger que siguen ocupando un casillero al cierre.
+/// Órdenes de la sucursal del turno pendientes de recoger (casillero ocupado).
 final unfinishedOrdersProvider = Provider<List<CoffeeOrder>>((ref) {
+  final shift = ref.watch(shiftControllerProvider);
   final List<CoffeeOrder> orders =
       ref.watch(allOrdersProvider).valueOrNull ?? const [];
-  return orders.where((o) => o.status == OrderStatus.ready).toList();
+  return orders
+      .where((o) =>
+          o.status == OrderStatus.ready &&
+          (shift == null || o.branchId == shift.branchId))
+      .toList();
 });

@@ -24,6 +24,7 @@ abstract interface class CheckoutService {
     required List<CartItem> items,
     required int amountCents,
     required String userId,
+    required String branchId,
   });
 }
 
@@ -38,9 +39,10 @@ class MockCheckoutService implements CheckoutService {
     required List<CartItem> items,
     required int amountCents,
     required String userId,
+    required String branchId,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 800)); // "pago"
-    final orderId = await _orders.create(items, amountCents, userId);
+    final orderId = await _orders.create(items, amountCents, userId, branchId);
     return PlaceOrderResult(success: true, orderId: orderId);
   }
 }

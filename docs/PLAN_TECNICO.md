@@ -77,17 +77,43 @@ orders/{orderId}
   ├─ lockerNumber: int | null
   ├─ createdAt, estimatedReadyAt: timestamp
 
-lockers/{lockerNumber}
+branches/{branchId}
+  ├─ name, address
+  └─ lockerCount: int
+
+staff/{uid}
+  ├─ name, email
+  ├─ role: 'employee' | 'admin'
+  └─ branchId: string | null     (null para admin general)
+
+lockers/{lockerId}              (id: "<branchId>-<n>")
+  ├─ number: int
+  ├─ branchId: string
   ├─ status: free | reserved | occupied
   └─ currentOrderId: string | null
 
 shifts/{shiftId}
   ├─ employeeName: string
+  ├─ branchId: string
   ├─ startedAt: timestamp
   ├─ endedAt: timestamp | null   (null = turno abierto)
   ├─ ordersCount: int            (se calcula al cerrar)
   └─ totalSalesCents: int        (cierre de caja)
 ```
+
+> `orders/{orderId}` incluye `branchId`: cada pedido pertenece a la sucursal
+> donde se recoge.
+
+### Roles y accesos
+
+| Rol | Login | Ve |
+|-----|-------|----|
+| **Cliente** | Social (Google/Apple/Facebook) | Menú, su pedido; elige sucursal de recogida |
+| **Empleado** | Usuario/contraseña | Cola de pedidos **de su sucursal**; abre turno y hace cierre de caja |
+| **Administrador general** | Usuario/contraseña | **Dashboard de todas las sucursales** (ventas, pedidos activos, casilleros ocupados) |
+
+El rol y la sucursal viven como **custom claims** (`role`, `branchId`) del token,
+que las reglas de Firestore y las Cloud Functions verifican en cada operación.
 
 La app **escucha** `orders/{orderId}` en tiempo real: cuando el backend cambia
 `status` a `ready` y asigna `lockerNumber`, la UI se actualiza sola.

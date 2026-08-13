@@ -3,24 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/money.dart';
+import '../../branches/data/branch_repository.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
 import '../application/shift_controller.dart';
 
-/// Panel del empleado: cola de pedidos entrantes en tiempo real.
+/// Panel del empleado: cola de pedidos de SU sucursal en tiempo real.
 class StaffDashboardScreen extends ConsumerWidget {
   const StaffDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shift = ref.watch(shiftControllerProvider);
-    final List<CoffeeOrder> queue =
-        ref.watch(orderQueueProvider).valueOrNull ?? const [];
+    final branchId = shift?.branchId ?? '';
+    final List<CoffeeOrder> queue = ref.watch(branchQueueProvider(branchId));
+
+    final branches = ref.watch(branchesProvider).valueOrNull ?? const [];
+    final matches = branches.where((b) => b.id == branchId).toList();
+    final branchName = matches.isEmpty ? null : matches.first.name;
 
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text(shift == null ? 'PEDIDOS' : 'Turno: ${shift.employeeName}'),
+        title: Text(branchName == null ? 'PEDIDOS' : 'Sucursal $branchName'),
         actions: [
           TextButton.icon(
             onPressed: () => context.push('/staff/close'),

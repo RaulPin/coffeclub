@@ -40,7 +40,8 @@ function requireAuth(request: CallableRequest): string {
 }
 
 function requireStaff(request: CallableRequest): void {
-  if (request.auth?.token?.staff !== true) {
+  const role = request.auth?.token?.role;
+  if (role !== "employee" && role !== "admin") {
     throw new HttpsError("permission-denied", "Acción solo para personal.");
   }
 }
@@ -85,8 +86,12 @@ export const createPaymentIntent = onCall(
     const items = request.data?.items as
       | {productId: string; quantity: number}[]
       | undefined;
+    const branchId = request.data?.branchId as string | undefined;
     if (!items || items.length === 0) {
       throw new HttpsError("invalid-argument", "El carrito está vacío.");
+    }
+    if (!branchId) {
+      throw new HttpsError("invalid-argument", "Falta la sucursal.");
     }
 
     const db = admin.firestore();
@@ -131,6 +136,7 @@ export const createPaymentIntent = onCall(
     const now = admin.firestore.Timestamp.now();
     const orderRef = await db.collection("orders").add({
       userId: uid,
+      branchId,
       items: orderItems,
       totalCents,
       status: "awaiting_payment",
@@ -268,9 +274,19 @@ export const markOrderReady = onCall(async (request) => {
   if (!orderId) throw new HttpsError("invalid-argument", "Falta orderId.");
 
   const db = admin.firestore();
+
+  const order = (await db.collection("orders").doc(orderId).get()).data();
+  if (!order) throw new HttpsError("not-found", "Orden no encontrada.");
+  const branchId = order.branchId as string;
+
   const lockerNumber = await db.runTransaction(async (tx) => {
+    // Casillero libre de la misma sucursal de la orden.
     const q = await tx.get(
-      db.collection("lockers").where("status", "==", "free").limit(1)
+      db
+        .collection("lockers")
+        .where("branchId", "==", branchId)
+        .where("status", "==", "free")
+        .limit(1)
     );
     if (q.empty) {
       throw new HttpsError("resource-exhausted", "No hay casilleros libres.");
@@ -338,6 +354,7 @@ export const closeShift = onCall(async (request) => {
   if (!shift) throw new HttpsError("not-found", "Turno no encontrado.");
 
   const startedAt = shift.startedAt as admin.firestore.Timestamp;
+  const branchId = shift.branchId as string;
   const closedAt = admin.firestore.Timestamp.now();
 
   const ordersSnap = await db
@@ -346,16 +363,19 @@ export const closeShift = onCall(async (request) => {
     .where("createdAt", "<=", closedAt)
     .get();
 
+  let ordersCount = 0;
   let totalSalesCents = 0;
   ordersSnap.forEach((d) => {
+    if (d.data().branchId !== branchId) return; // solo esta sucursal
+    ordersCount += 1;
     totalSalesCents += Number(d.data().totalCents) || 0;
   });
 
   await shiftRef.update({
     endedAt: closedAt,
-    ordersCount: ordersSnap.size,
+    ordersCount,
     totalSalesCents,
   });
 
-  return {ordersCount: ordersSnap.size, totalSalesCents};
+  return {ordersCount, totalSalesCents};
 });

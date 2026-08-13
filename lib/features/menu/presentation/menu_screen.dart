@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../branches/data/branch_repository.dart';
 import '../../cart/application/cart_controller.dart';
 import '../../subscription/application/daily_perk.dart';
 import '../data/menu_repository.dart';
@@ -41,6 +42,8 @@ class MenuScreen extends ConsumerWidget {
         data: (grouped) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            const _BranchSelector(),
+            const SizedBox(height: 12),
             if (user != null && !user.isSubscriber)
               _SubscriptionBanner(
                 onTap: () => context.push('/subscription'),
@@ -57,6 +60,42 @@ class MenuScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BranchSelector extends ConsumerWidget {
+  const _BranchSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final branches = ref.watch(branchesProvider).valueOrNull ?? const [];
+    if (branches.isEmpty) return const SizedBox.shrink();
+
+    final selectedId =
+        ref.watch(selectedBranchIdProvider) ?? branches.first.id;
+
+    return Row(
+      children: [
+        const Icon(Icons.storefront_outlined, size: 20),
+        const SizedBox(width: 8),
+        const Text('Recoger en:',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: DropdownButton<String>(
+            value: selectedId,
+            isExpanded: true,
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final b in branches)
+                DropdownMenuItem(value: b.id, child: Text(b.name)),
+            ],
+            onChanged: (id) =>
+                ref.read(selectedBranchIdProvider.notifier).state = id,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -8,7 +8,10 @@ import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/orders/presentation/order_tracking_screen.dart';
-import '../../features/staff/application/shift_controller.dart';
+import '../../features/staff/application/staff_auth_controller.dart';
+import '../../features/staff/domain/staff_user.dart';
+import '../../features/staff/presentation/admin_branch_screen.dart';
+import '../../features/staff/presentation/admin_dashboard_screen.dart';
 import '../../features/staff/presentation/shift_close_screen.dart';
 import '../../features/staff/presentation/staff_dashboard_screen.dart';
 import '../../features/staff/presentation/staff_login_screen.dart';
@@ -65,20 +68,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/staff/close',
         builder: (_, __) => const ShiftCloseScreen(),
       ),
+      GoRoute(
+        path: '/staff/branch/:id',
+        builder: (_, state) =>
+            AdminBranchScreen(branchId: state.pathParameters['id']!),
+      ),
     ],
   );
 });
 
-/// Decide qué mostrar en la estación de tienda: si hay turno abierto muestra
-/// el panel de pedidos, si no, la pantalla de inicio de turno.
+/// Enruta la estación de tienda según el rol: sin sesión → login;
+/// administrador → dashboard multi-sucursal; empleado → cola de su sucursal.
 class StaffGate extends ConsumerWidget {
   const StaffGate({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final shift = ref.watch(shiftControllerProvider);
-    return shift == null
-        ? const StaffLoginScreen()
+    final staff = ref.watch(staffAuthControllerProvider);
+    if (staff == null) return const StaffLoginScreen();
+    return staff.role == StaffRole.admin
+        ? const AdminDashboardScreen()
         : const StaffDashboardScreen();
   }
 }

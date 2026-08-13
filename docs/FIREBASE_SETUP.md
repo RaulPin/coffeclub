@@ -46,6 +46,7 @@ En **Firebase Console → Authentication → Sign-in method**, habilita:
 - **Google** (listo casi de inmediato).
 - **Apple** (obligatorio en iOS; requiere Apple Developer + Service ID).
 - **Facebook** (crea una app en Meta for Developers y pega App ID / Secret).
+- **Correo/contraseña** (para el login del personal: empleados y admin).
 
 Configuración por plataforma:
 - **Android**: agrega la huella SHA-1/SHA-256 al proyecto Firebase.
@@ -60,7 +61,8 @@ Configuración por plataforma:
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-Puebla el menú y los 12 casilleros (ver `scripts/seed.mjs`):
+Puebla menú, **sucursales**, casilleros y **cuentas de personal** (ver
+`scripts/seed.mjs`):
 
 ```bash
 # Descarga la clave de servicio como scripts/serviceAccountKey.json
@@ -68,12 +70,18 @@ npm i firebase-admin
 node scripts/seed.mjs
 ```
 
-**Marcar a un empleado como staff** (para la estación de tienda). Las reglas y
-funciones exigen el custom claim `staff`. Con la clave de servicio:
+El seed crea las sucursales (Condesa, Roma Norte, Polanco), sus casilleros y las
+cuentas del personal con sus **custom claims** (`role`, `branchId`):
 
-```js
-await admin.auth().setCustomUserClaims(uid, {staff: true});
-```
+| Cuenta | Contraseña | Rol |
+|--------|-----------|-----|
+| `condesa@theclubcoffe.mx` | `1234` | empleado (Condesa) |
+| `roma@theclubcoffe.mx` | `1234` | empleado (Roma Norte) |
+| `admin@theclubcoffe.mx` | `admin1234` | administrador general |
+
+> Cambia estas contraseñas en producción. Para agregar más empleados, crea el
+> usuario en Firebase Auth, ponle el claim `{role, branchId}` y su doc en
+> `staff/{uid}` (el seed muestra cómo).
 
 ---
 

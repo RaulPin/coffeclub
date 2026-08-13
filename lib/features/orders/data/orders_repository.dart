@@ -28,7 +28,8 @@ abstract interface class OrdersRepository {
   Stream<CoffeeOrder?> watchOrder(String orderId);
 
   /// [CLIENTE] Crea una orden pagada; queda en cola (`pending`).
-  Future<String> create(List<CartItem> items, int totalCents, String userId);
+  Future<String> create(
+      List<CartItem> items, int totalCents, String userId, String branchId);
 
   /// [EMPLEADO] Empieza a preparar.
   Future<void> startPreparing(String orderId);
@@ -79,8 +80,8 @@ class MockOrdersRepository implements OrdersRepository {
       });
 
   @override
-  Future<String> create(
-      List<CartItem> items, int totalCents, String userId) async {
+  Future<String> create(List<CartItem> items, int totalCents, String userId,
+      String branchId) async {
     final now = DateTime.now();
     final order = CoffeeOrder(
       id: 'ord_${now.millisecondsSinceEpoch}',
@@ -90,6 +91,7 @@ class MockOrdersRepository implements OrdersRepository {
       createdAt: now,
       estimatedReadyAt: now.add(const Duration(minutes: 5)),
       userId: userId,
+      branchId: branchId,
     );
     _orders = [..._orders, order];
     _emit();
@@ -168,4 +170,12 @@ final orderQueueProvider = StreamProvider<List<CoffeeOrder>>((ref) {
 /// Todas las órdenes (para el cierre de caja / reportes).
 final allOrdersProvider = StreamProvider<List<CoffeeOrder>>((ref) {
   return ref.watch(ordersRepositoryProvider).watchAll();
+});
+
+/// [EMPLEADO] Cola de órdenes activas de UNA sucursal.
+final branchQueueProvider =
+    Provider.family<List<CoffeeOrder>, String>((ref, branchId) {
+  final List<CoffeeOrder> queue =
+      ref.watch(orderQueueProvider).valueOrNull ?? const [];
+  return queue.where((o) => o.branchId == branchId).toList();
 });

@@ -48,11 +48,12 @@ class FirestoreOrdersRepository implements OrdersRepository {
       _orders.doc(orderId).snapshots().map((doc) => _fromDoc(doc));
 
   @override
-  Future<String> create(
-      List<CartItem> items, int totalCents, String userId) async {
+  Future<String> create(List<CartItem> items, int totalCents, String userId,
+      String branchId) async {
     final now = DateTime.now();
     final doc = await _orders.add({
       'userId': userId,
+      'branchId': branchId,
       'items': items.map(_itemToMap).toList(),
       'totalCents': totalCents,
       'status': 'pending',
@@ -118,6 +119,7 @@ class FirestoreOrdersRepository implements OrdersRepository {
       createdAt: _toDate(data['createdAt']) ?? DateTime.now(),
       estimatedReadyAt: _toDate(data['estimatedReadyAt']) ?? DateTime.now(),
       userId: data['userId'] as String? ?? '',
+      branchId: data['branchId'] as String? ?? '',
       lockerNumber: (data['lockerNumber'] as num?)?.toInt(),
       lockerPin: data['lockerPin'] as String?,
     );

@@ -35,9 +35,22 @@ const products = [
   {id: "postre-galleta", name: "Sándwich de Galleta con Chispas", description: "Galleta con chispas de chocolate y helado de fresa.", priceCents: 3900, category: "Postre"},
 ];
 
-const LOCKER_COUNT = 12;
+const branches = [
+  {id: "condesa", name: "Condesa", address: "Av. Michoacán 100, Condesa"},
+  {id: "roma", name: "Roma Norte", address: "Álvaro Obregón 50, Roma Nte."},
+  {id: "polanco", name: "Polanco", address: "Emilio Castelar 20, Polanco"},
+];
 
-async function main() {
+const LOCKERS_PER_BRANCH = 12;
+
+// Cuentas del personal (email/contraseña) con su rol y sucursal.
+const staff = [
+  {email: "condesa@theclubcoffe.mx", password: "1234", name: "Empleado Condesa", role: "employee", branchId: "condesa"},
+  {email: "roma@theclubcoffe.mx", password: "1234", name: "Empleado Roma", role: "employee", branchId: "roma"},
+  {email: "admin@theclubcoffe.mx", password: "admin1234", name: "Administrador General", role: "admin", branchId: null},
+];
+
+async function seedFirestore() {
   const batch = db.batch();
 
   for (const p of products) {
@@ -49,16 +62,51 @@ async function main() {
     });
   }
 
-  for (let n = 1; n <= LOCKER_COUNT; n++) {
-    batch.set(db.collection("lockers").doc(String(n)), {
-      number: n,
-      status: "free",
-      currentOrderId: null,
-    });
+  for (const b of branches) {
+    const {id, ...data} = b;
+    batch.set(db.collection("branches").doc(id), {...data, lockerCount: LOCKERS_PER_BRANCH});
+    // Casilleros por sucursal: id = "<branchId>-<n>".
+    for (let n = 1; n <= LOCKERS_PER_BRANCH; n++) {
+      batch.set(db.collection("lockers").doc(`${id}-${n}`), {
+        number: n,
+        branchId: id,
+        status: "free",
+        currentOrderId: null,
+      });
+    }
   }
 
   await batch.commit();
-  console.log(`Seed listo: ${products.length} productos y ${LOCKER_COUNT} casilleros.`);
+}
+
+async function seedStaff() {
+  for (const s of staff) {
+    let uid;
+    try {
+      const existing = await admin.auth().getUserByEmail(s.email);
+      uid = existing.uid;
+    } catch {
+      const created = await admin.auth().createUser({email: s.email, password: s.password});
+      uid = created.uid;
+    }
+    // Custom claims: rol y sucursal (los usan reglas y Cloud Functions).
+    await admin.auth().setCustomUserClaims(uid, {role: s.role, branchId: s.branchId ?? null});
+    await db.collection("staff").doc(uid).set({
+      name: s.name,
+      email: s.email,
+      role: s.role,
+      branchId: s.branchId ?? null,
+    });
+  }
+}
+
+async function main() {
+  await seedFirestore();
+  await seedStaff();
+  console.log(
+    `Seed listo: ${products.length} productos, ${branches.length} sucursales ` +
+    `(${LOCKERS_PER_BRANCH} casilleros c/u) y ${staff.length} cuentas de personal.`
+  );
 }
 
 main().catch((e) => {

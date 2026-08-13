@@ -7,6 +7,7 @@ import '../../../core/utils/money.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
 import '../application/shift_controller.dart';
+import '../application/staff_auth_controller.dart';
 import '../domain/shift.dart';
 
 /// Cierre de caja: resumen del turno antes de entregar a la siguiente persona.
@@ -99,6 +100,8 @@ class ShiftCloseScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     final report = ref.read(shiftControllerProvider.notifier).closeShift();
+    // Cierra la sesión del empleado: el siguiente turno inicia sesión.
+    await ref.read(staffAuthControllerProvider.notifier).signOut();
     if (report != null && context.mounted) {
       _showReport(context, report);
     }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../branches/data/branch_repository.dart';
 import '../../cart/application/cart_controller.dart';
 import '../../cart/application/pricing.dart';
 import '../../orders/data/orders_repository.dart';
@@ -25,11 +26,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final items = ref.read(cartControllerProvider);
     final pricing = ref.read(cartPricingProvider);
     final userId = ref.read(authControllerProvider)?.id ?? 'demo-user';
+    final branchId = ref.read(selectedBranchIdProvider) ??
+        ref.read(branchesProvider).valueOrNull?.first.id ??
+        'condesa';
 
     final result = await ref.read(checkoutServiceProvider).placeOrder(
           items: items,
           amountCents: pricing.totalCents,
           userId: userId,
+          branchId: branchId,
         );
     if (!mounted) return;
 
