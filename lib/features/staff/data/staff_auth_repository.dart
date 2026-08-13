@@ -17,7 +17,7 @@ class MockStaffAuthRepository implements StaffAuthRepository {
   static final Map<String, ({String password, StaffUser user})> _accounts = {
     'condesa@theclubcoffe.mx': (
       password: '1234',
-      user: StaffUser(
+      user: const StaffUser(
         id: 'emp_condesa',
         name: 'Empleado Condesa',
         email: 'condesa@theclubcoffe.mx',
@@ -27,7 +27,7 @@ class MockStaffAuthRepository implements StaffAuthRepository {
     ),
     'roma@theclubcoffe.mx': (
       password: '1234',
-      user: StaffUser(
+      user: const StaffUser(
         id: 'emp_roma',
         name: 'Empleado Roma',
         email: 'roma@theclubcoffe.mx',
@@ -37,7 +37,7 @@ class MockStaffAuthRepository implements StaffAuthRepository {
     ),
     'admin@theclubcoffe.mx': (
       password: 'admin',
-      user: StaffUser(
+      user: const StaffUser(
         id: 'admin_general',
         name: 'Administrador General',
         email: 'admin@theclubcoffe.mx',
