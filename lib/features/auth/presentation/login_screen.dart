@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/config/app_config.dart';
-import '../data/auth_repository.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../application/auth_controller.dart';
+import '../data/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -27,54 +28,73 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
-              Text(
-                AppConfig.appName.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
+              const Spacer(flex: 3),
+              Center(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.ink,
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                  ),
+                  child: const Icon(Icons.local_cafe_outlined,
+                      color: Colors.white, size: 36),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xl),
               const Text(
-                'BIENVENIDO SOCIO.',
+                'The Club Coffe',
                 textAlign: TextAlign.center,
-                style: TextStyle(letterSpacing: 3, color: Color(0xFF6B6B6B)),
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Un café al día por \$1. Sin fila.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.muted, fontSize: 15),
+              ),
+              const Spacer(flex: 4),
               if (_loading)
-                const Center(child: CircularProgressIndicator())
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  child: Center(child: CircularProgressIndicator()),
+                )
               else ...[
                 _SocialButton(
                   label: 'Continuar con Google',
                   icon: Icons.g_mobiledata,
                   onTap: () => _signIn(SocialProvider.google),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 _SocialButton(
                   label: 'Continuar con Apple',
                   icon: Icons.apple,
                   onTap: () => _signIn(SocialProvider.apple),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 _SocialButton(
                   label: 'Continuar con Facebook',
                   icon: Icons.facebook,
                   onTap: () => _signIn(SocialProvider.facebook),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.lg),
                 TextButton(
                   onPressed: () => context.go('/staff'),
-                  child: const Text('Acceso empleados (estación de tienda)'),
+                  child: const Text(
+                    'Acceso empleados · estación de tienda',
+                    style: TextStyle(color: AppColors.muted),
+                  ),
                 ),
               ],
-              const SizedBox(height: 40),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -96,10 +116,23 @@ class _SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon),
-      label: Text(label),
+    return SizedBox(
+      height: AppRadius.buttonHeight,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: AppColors.surface,
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 22, color: AppColors.ink),
+            const SizedBox(width: AppSpacing.md),
+            Text(label),
+          ],
+        ),
+      ),
     );
   }
 }
