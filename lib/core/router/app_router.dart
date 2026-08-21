@@ -16,6 +16,7 @@ import '../../features/staff/presentation/shift_close_screen.dart';
 import '../../features/staff/presentation/staff_dashboard_screen.dart';
 import '../../features/staff/presentation/staff_login_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
+import 'client_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -38,25 +39,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (_, __) => const LoginScreen(),
       ),
-      GoRoute(
-        path: '/menu',
-        builder: (_, __) => const MenuScreen(),
+
+      // --- Cliente: pestañas con barra inferior ---
+      StatefulShellRoute.indexedStack(
+        builder: (_, __, navigationShell) =>
+            ClientShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/menu', builder: (_, __) => const MenuScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/cart', builder: (_, __) => const CartScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/order',
+                builder: (_, __) => const OrderTrackingScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/subscription',
+                builder: (_, __) => const SubscriptionScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
-      GoRoute(
-        path: '/subscription',
-        builder: (_, __) => const SubscriptionScreen(),
-      ),
-      GoRoute(
-        path: '/cart',
-        builder: (_, __) => const CartScreen(),
-      ),
+
+      // Checkout va por encima del shell (pantalla completa, sin barra).
       GoRoute(
         path: '/checkout',
         builder: (_, __) => const CheckoutScreen(),
-      ),
-      GoRoute(
-        path: '/order',
-        builder: (_, __) => const OrderTrackingScreen(),
       ),
 
       // --- Estación de tienda (empleado) ---

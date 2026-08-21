@@ -97,7 +97,7 @@ class _CartButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/cart'),
+      onTap: () => context.go('/cart'),
       child: Container(
         width: 40,
         height: 40,
