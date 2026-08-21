@@ -118,7 +118,7 @@ class _ClubCard extends StatelessWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        borderRadius: BorderRadius.circular(AppRadius.button),
                       ),
                       child: const Icon(Icons.local_cafe_outlined,
                           size: 18, color: Colors.white),
