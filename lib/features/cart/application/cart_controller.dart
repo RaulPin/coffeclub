@@ -32,6 +32,11 @@ class CartController extends StateNotifier<List<CartItem>> {
     }
   }
 
+  /// Quita por completo una línea del carrito (sin importar la cantidad).
+  void removeLine(Product product) {
+    state = state.where((i) => i.product.id != product.id).toList();
+  }
+
   void clear() => state = [];
 
   int get totalCents =>
