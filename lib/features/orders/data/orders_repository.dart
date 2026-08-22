@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../../../services/lockers/locker_service.dart';
 import '../../../services/lockers/mock_locker_service.dart';
 import '../../cart/domain/cart_item.dart';
+import '../../menu/domain/product.dart';
 import '../domain/order.dart';
 import 'firestore_orders_repository.dart';
 
@@ -44,12 +45,134 @@ abstract interface class OrdersRepository {
 /// Implementación en memoria para el demo (simula la colección `orders/`).
 /// Emite por streams igual que Firestore, así la UI es idéntica en ambos modos.
 class MockOrdersRepository implements OrdersRepository {
-  MockOrdersRepository(this._lockers);
+  MockOrdersRepository(this._lockers) {
+    _orders = _demoSeed();
+  }
 
   final LockerService _lockers;
   final StreamController<List<CoffeeOrder>> _controller =
       StreamController<List<CoffeeOrder>>.broadcast();
-  List<CoffeeOrder> _orders = [];
+  late List<CoffeeOrder> _orders;
+
+  /// Línea de carrito rápida para los pedidos de ejemplo.
+  static CartItem _item(
+    String id,
+    String name,
+    int cents,
+    String category, [
+    int qty = 1,
+  ]) =>
+      CartItem(
+        product: Product(
+          id: id,
+          name: name,
+          description: '',
+          priceCents: cents,
+          category: category,
+        ),
+        quantity: qty,
+      );
+
+  /// Pedidos de ejemplo para que el panel de staff se vea poblado en el demo.
+  /// (Solo en modo mock; en producción la cola arranca vacía y se llena con
+  /// órdenes reales.)
+  static List<CoffeeOrder> _demoSeed() {
+    final now = DateTime.now();
+    CoffeeOrder mk({
+      required String id,
+      required List<CartItem> items,
+      required OrderStatus status,
+      required String branchId,
+      required int minutesAgo,
+      int? lockerNumber,
+      String? lockerPin,
+    }) {
+      final createdAt = now.subtract(Duration(minutes: minutesAgo));
+      return CoffeeOrder(
+        id: id,
+        items: items,
+        totalCents: items.fold(0, (s, i) => s + i.subtotalCents),
+        status: status,
+        createdAt: createdAt,
+        estimatedReadyAt: createdAt.add(const Duration(minutes: 5)),
+        userId: 'demo',
+        branchId: branchId,
+        lockerNumber: lockerNumber,
+        lockerPin: lockerPin,
+      );
+    }
+
+    return [
+      // --- Condesa: cola activa para el empleado de esa sucursal ---
+      mk(
+        id: 'CC-4829',
+        branchId: 'condesa',
+        status: OrderStatus.pending,
+        minutesAgo: 2,
+        items: [
+          _item('americano', 'Americano', 4000, 'Café'),
+          _item('postre-galleta', 'Sándwich de Galleta', 3900, 'Postre'),
+        ],
+      ),
+      mk(
+        id: 'CC-4830',
+        branchId: 'condesa',
+        status: OrderStatus.preparing,
+        minutesAgo: 5,
+        items: [_item('latte', 'Latte', 5000, 'Café')],
+      ),
+      mk(
+        id: 'CC-4831',
+        branchId: 'condesa',
+        status: OrderStatus.ready,
+        minutesAgo: 9,
+        lockerNumber: 3,
+        lockerPin: '4417',
+        items: [
+          _item('cold-brew', 'Cold Brew', 5500, 'Café'),
+          _item('pizza-doble-pepperoni', 'Doble Pepperoni', 13000, 'Pizza'),
+        ],
+      ),
+      // --- Roma Norte ---
+      mk(
+        id: 'CC-4832',
+        branchId: 'roma',
+        status: OrderStatus.preparing,
+        minutesAgo: 7,
+        items: [_item('espresso', 'Espresso', 3500, 'Café', 2)],
+      ),
+      mk(
+        id: 'CC-4833',
+        branchId: 'roma',
+        status: OrderStatus.ready,
+        minutesAgo: 14,
+        lockerNumber: 7,
+        lockerPin: '6630',
+        items: [_item('americano', 'Americano', 4000, 'Café')],
+      ),
+      // --- Polanco ---
+      mk(
+        id: 'CC-4834',
+        branchId: 'polanco',
+        status: OrderStatus.pending,
+        minutesAgo: 3,
+        items: [_item('pizza-doble-pepperoni', 'Doble Pepperoni', 13000, 'Pizza')],
+      ),
+      // --- Condesa: uno ya recogido (para ventas del día) ---
+      mk(
+        id: 'CC-4828',
+        branchId: 'condesa',
+        status: OrderStatus.pickedUp,
+        minutesAgo: 35,
+        lockerNumber: 5,
+        lockerPin: '1128',
+        items: [
+          _item('latte', 'Latte', 5000, 'Café'),
+          _item('postre-galleta', 'Sándwich de Galleta', 3900, 'Postre'),
+        ],
+      ),
+    ];
+  }
 
   void dispose() => _controller.close();
 
