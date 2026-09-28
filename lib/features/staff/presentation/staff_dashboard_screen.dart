@@ -393,18 +393,14 @@ class _OrderCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (order.status == OrderStatus.ready &&
-                    order.lockerNumber != null) ...[
+                if (order.status == OrderStatus.ready) ...[
                   const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
                       _InfoChip(
-                        icon: Icons.lock_outline,
-                        label: 'Casillero #${order.lockerNumber}',
+                        icon: Icons.confirmation_number_outlined,
+                        label: 'Código ${order.pickupCode}',
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      if (order.lockerPin != null)
-                        _InfoChip(label: 'PIN ${order.lockerPin}'),
                     ],
                   ),
                 ],

@@ -87,7 +87,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           _InfoRow(
             icon: Icons.location_on_outlined,
             title: branchName ?? 'Sucursal',
-            subtitle: 'Recogida en casillero con PIN',
+            subtitle: 'Recogida en barra con tu código',
           ),
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('Método de pago'),

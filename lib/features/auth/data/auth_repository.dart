@@ -29,7 +29,7 @@ class MockAuthRepository implements AuthRepository {
     _user = const AppUser(
       id: 'demo-user',
       name: 'Socio Demo',
-      email: 'socio@theclubcoffe.mx',
+      email: 'socio@barra.mx',
       isSubscriber: false,
     );
     return _user!;

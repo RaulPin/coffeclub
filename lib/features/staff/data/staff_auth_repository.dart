@@ -10,37 +10,37 @@ abstract interface class StaffAuthRepository {
 /// Implementación de demo con cuentas de ejemplo.
 ///
 /// Cuentas para probar:
-///   - condesa@theclubcoffe.mx / 1234   → empleado (sucursal Condesa)
-///   - roma@theclubcoffe.mx    / 1234   → empleado (sucursal Roma Norte)
-///   - admin@theclubcoffe.mx   / admin  → administrador general
+///   - condesa@barra.mx / 1234   → empleado (sucursal Condesa)
+///   - roma@barra.mx    / 1234   → empleado (sucursal Roma Norte)
+///   - admin@barra.mx   / admin  → administrador general
 class MockStaffAuthRepository implements StaffAuthRepository {
   static final Map<String, ({String password, StaffUser user})> _accounts = {
-    'condesa@theclubcoffe.mx': (
+    'condesa@barra.mx': (
       password: '1234',
       user: const StaffUser(
         id: 'emp_condesa',
         name: 'Empleado Condesa',
-        email: 'condesa@theclubcoffe.mx',
+        email: 'condesa@barra.mx',
         role: StaffRole.employee,
         branchId: 'condesa',
       ),
     ),
-    'roma@theclubcoffe.mx': (
+    'roma@barra.mx': (
       password: '1234',
       user: const StaffUser(
         id: 'emp_roma',
         name: 'Empleado Roma',
-        email: 'roma@theclubcoffe.mx',
+        email: 'roma@barra.mx',
         role: StaffRole.employee,
         branchId: 'roma',
       ),
     ),
-    'admin@theclubcoffe.mx': (
+    'admin@barra.mx': (
       password: 'admin',
       user: const StaffUser(
         id: 'admin_general',
         name: 'Administrador General',
-        email: 'admin@theclubcoffe.mx',
+        email: 'admin@barra.mx',
         role: StaffRole.admin,
       ),
     ),

@@ -10,7 +10,7 @@ class AppConfig {
   static const bool useMockBackend = true;
 
   /// Nombre comercial.
-  static const String appName = 'The Club Coffe';
+  static const String appName = 'Barra';
 
   /// Precio del café para socios (en centavos de MXN).
   static const int socioCoffeePriceCents = 100; // $1.00

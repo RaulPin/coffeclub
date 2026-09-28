@@ -47,7 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
               const Text(
-                'The Club Coffe',
+                'Barra',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 30,
@@ -57,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               const Text(
-                'Un café al día por \$1. Sin fila.',
+                'Tu café, sin fila.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.muted, fontSize: 15),
               ),

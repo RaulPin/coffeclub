@@ -4,8 +4,8 @@ import '../../cart/domain/cart_item.dart';
 enum OrderStatus {
   pending, // pago confirmado, en cola
   preparing, // en preparación
-  ready, // listo en el casillero
-  pickedUp, // recogido por el socio
+  ready, // listo para recoger en la barra
+  pickedUp, // recogido por el cliente
 }
 
 extension OrderStatusLabel on OrderStatus {
@@ -17,7 +17,7 @@ extension OrderStatusLabel on OrderStatus {
       };
 }
 
-/// Pedido realizado por un socio.
+/// Pedido realizado por un cliente en una cafetería.
 class CoffeeOrder {
   const CoffeeOrder({
     required this.id,
@@ -28,8 +28,7 @@ class CoffeeOrder {
     required this.estimatedReadyAt,
     required this.userId,
     required this.branchId,
-    this.lockerNumber,
-    this.lockerPin,
+    required this.pickupCode,
   });
 
   final String id;
@@ -38,29 +37,22 @@ class CoffeeOrder {
   final OrderStatus status;
   final DateTime createdAt;
 
-  /// Id del socio que hizo el pedido.
+  /// Id del cliente que hizo el pedido.
   final String userId;
 
-  /// Sucursal donde se prepara y recoge el pedido.
+  /// Cafetería donde se prepara y recoge el pedido.
   final String branchId;
 
   /// Momento estimado en que el pedido estará listo (para el contador).
   final DateTime estimatedReadyAt;
 
-  /// Número de casillero asignado (1..12). Null hasta que se asigna.
-  final int? lockerNumber;
-
-  /// PIN/código para abrir el casillero (si el hardware lo requiere).
-  final String? lockerPin;
+  /// Código de recogida que el cliente muestra en la barra para recibir su
+  /// pedido (p. ej. "K4T9").
+  final String pickupCode;
 
   double get total => totalCents / 100;
 
-  CoffeeOrder copyWith({
-    OrderStatus? status,
-    int? lockerNumber,
-    String? lockerPin,
-  }) =>
-      CoffeeOrder(
+  CoffeeOrder copyWith({OrderStatus? status}) => CoffeeOrder(
         id: id,
         items: items,
         totalCents: totalCents,
@@ -69,7 +61,6 @@ class CoffeeOrder {
         estimatedReadyAt: estimatedReadyAt,
         userId: userId,
         branchId: branchId,
-        lockerNumber: lockerNumber ?? this.lockerNumber,
-        lockerPin: lockerPin ?? this.lockerPin,
+        pickupCode: pickupCode,
       );
 }

@@ -250,7 +250,7 @@ class _SummaryBar extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
             ],
             _Line(
-              label: 'Casillero',
+              label: 'Recogida en barra',
               value: 'Gratis',
               muted: true,
               valueColor: AppColors.success,
@@ -288,9 +288,9 @@ class _SummaryBar extends StatelessWidget {
                           height: 1.3,
                         ),
                         children: [
-                          TextSpan(text: 'Recoge con '),
+                          TextSpan(text: 'Recoge con tu '),
                           TextSpan(
-                            text: 'PIN en tu casillero',
+                            text: 'código en la barra',
                             style: TextStyle(
                               color: AppColors.ink,
                               fontWeight: FontWeight.w700,

@@ -125,7 +125,7 @@ class _ClubCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'THE CLUB COFFE',
+                      'BARRA',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 11,
@@ -304,7 +304,7 @@ class _BenefitsGrid extends StatelessWidget {
 
   static const _benefits = [
     (Icons.local_cafe_outlined, '1 café al día', 'Americano por \$1 cada día'),
-    (Icons.bolt_outlined, 'Sin fila', 'Recoge directo en tu casillero'),
+    (Icons.bolt_outlined, 'Sin fila', 'Recoge directo en la barra'),
     (Icons.lock_outline, 'Recogida con PIN', 'Acceso seguro 24/7'),
     (Icons.event_repeat_outlined, 'Sin permanencia', 'Cancela cuando quieras'),
   ];

@@ -133,7 +133,7 @@ class _BranchCard extends StatelessWidget {
               Row(
                 children: [
                   _Metric(label: 'Activos', value: '${metrics.activeOrders}'),
-                  _Metric(label: 'En casillero', value: '${metrics.inLocker}'),
+                  _Metric(label: 'Listos', value: '${metrics.inLocker}'),
                   _Metric(
                       label: 'Ventas hoy',
                       value: formatCents(metrics.todaySalesCents)),

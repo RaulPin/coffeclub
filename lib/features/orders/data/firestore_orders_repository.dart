@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
-import '../../../services/lockers/locker_service.dart';
 import '../../cart/domain/cart_item.dart';
 import '../../menu/domain/product.dart';
 import '../domain/order.dart';
@@ -10,18 +9,14 @@ import 'orders_repository.dart';
 /// Implementación real sobre Cloud Firestore.
 ///
 /// - Lecturas: `snapshots()` en tiempo real (los dos extremos ven lo mismo).
-/// - Escrituras sensibles (asignar casillero, abrir casillero): vía Cloud
-///   Functions para transaccionalidad y para no exponer credenciales del
-///   hardware en el cliente.
+/// - Escrituras de estado: vía Cloud Functions para transaccionalidad.
 ///
 /// > Nota: en el flujo endurecido de producción, la ORDEN la crea el webhook
 /// > de Stripe tras confirmarse el pago (ver `StripeCheckoutService` y las
 /// > Cloud Functions). Aquí `create` queda disponible para pruebas directas.
 class FirestoreOrdersRepository implements OrdersRepository {
-  FirestoreOrdersRepository(this._lockers);
+  FirestoreOrdersRepository();
 
-  // ignore: unused_field
-  final LockerService _lockers;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
@@ -60,7 +55,7 @@ class FirestoreOrdersRepository implements OrdersRepository {
       'createdAt': Timestamp.fromDate(now),
       'estimatedReadyAt':
           Timestamp.fromDate(now.add(const Duration(minutes: 5))),
-      'lockerNumber': null,
+      'pickupCode': generatePickupCode(),
     });
     return doc.id;
   }
@@ -71,14 +66,12 @@ class FirestoreOrdersRepository implements OrdersRepository {
 
   @override
   Future<void> markReady(String orderId) async {
-    // La Cloud Function asigna un casillero libre de forma transaccional.
     await _functions.httpsCallable('markOrderReady').call({'orderId': orderId});
   }
 
   @override
   Future<void> pickUp(String orderId) async {
-    // La Cloud Function ordena al hardware abrir el casillero.
-    await _functions.httpsCallable('openLocker').call({'orderId': orderId});
+    await _functions.httpsCallable('confirmPickup').call({'orderId': orderId});
   }
 
   // --- Mapeo Firestore <-> dominio ---
@@ -120,8 +113,7 @@ class FirestoreOrdersRepository implements OrdersRepository {
       estimatedReadyAt: _toDate(data['estimatedReadyAt']) ?? DateTime.now(),
       userId: data['userId'] as String? ?? '',
       branchId: data['branchId'] as String? ?? '',
-      lockerNumber: (data['lockerNumber'] as num?)?.toInt(),
-      lockerPin: data['lockerPin'] as String?,
+      pickupCode: data['pickupCode'] as String? ?? '----',
     );
   }
 

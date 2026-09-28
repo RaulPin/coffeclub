@@ -54,14 +54,13 @@ class ShiftCloseScreen extends ConsumerWidget {
                 label: 'Ventas del turno', value: formatCents(totalCents)),
             const Divider(),
             _StatRow(
-                label: 'Pedidos aún en casillero',
+                label: 'Pedidos aún por recoger',
                 value: '${pendingPickup.length}'),
             if (pendingPickup.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Avisa a la siguiente persona: casilleros '
-                '${pendingPickup.map((o) => o.lockerNumber).join(', ')} '
-                'siguen ocupados.',
+                'Aún en barra: códigos '
+                '${pendingPickup.map((o) => o.pickupCode).join(', ')}.',
                 style: TextStyle(color: Colors.orange.shade800),
               ),
             ],

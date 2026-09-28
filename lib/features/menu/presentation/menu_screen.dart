@@ -31,7 +31,7 @@ class MenuScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: AppSpacing.screen,
-        title: const Text('The Club Coffe'),
+        title: const Text('Barra'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -184,7 +184,7 @@ class _Hero extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               const Text(
-                'Ordena antes.\nRecoge con PIN.',
+                'Ordena antes.\nRecoge en barra.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,

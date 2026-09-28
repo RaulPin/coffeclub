@@ -1,22 +1,24 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
-import '../../../services/lockers/locker_service.dart';
-import '../../../services/lockers/mock_locker_service.dart';
 import '../../cart/domain/cart_item.dart';
 import '../../menu/domain/product.dart';
 import '../domain/order.dart';
 import 'firestore_orders_repository.dart';
 
-/// Provee la implementación del servicio de casilleros.
-final lockerServiceProvider = Provider<LockerService>((ref) {
-  return MockLockerService();
-});
+/// Genera un código de recogida corto y legible (sin caracteres ambiguos)
+/// que el cliente muestra en la barra. P. ej. "K4T9".
+String generatePickupCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  final rnd = Random();
+  return List.generate(4, (_) => chars[rnd.nextInt(chars.length)]).join();
+}
 
-/// Contrato de acceso a órdenes, compartido por la app CLIENTE y la app
-/// EMPLEADO. Ambos extremos observan los mismos streams (en producción son
+/// Contrato de acceso a órdenes, compartido por la app CLIENTE y el panel de
+/// la CAFETERÍA. Ambos extremos observan los mismos streams (en producción son
 /// `snapshots()` de Firestore) y escriben con los mismos métodos.
 abstract interface class OrdersRepository {
   /// Todas las órdenes (para reportes/turnos).
@@ -32,24 +34,23 @@ abstract interface class OrdersRepository {
   Future<String> create(
       List<CartItem> items, int totalCents, String userId, String branchId);
 
-  /// [EMPLEADO] Empieza a preparar.
+  /// [CAFETERÍA] Empieza a preparar.
   Future<void> startPreparing(String orderId);
 
-  /// [EMPLEADO] Marca lista y asigna un casillero disponible.
+  /// [CAFETERÍA] Marca el pedido como listo para recoger en la barra.
   Future<void> markReady(String orderId);
 
-  /// [CLIENTE] Abre el casillero y confirma la recogida.
+  /// [CAFETERÍA] Confirma que el cliente ya recogió su pedido en la barra.
   Future<void> pickUp(String orderId);
 }
 
 /// Implementación en memoria para el demo (simula la colección `orders/`).
 /// Emite por streams igual que Firestore, así la UI es idéntica en ambos modos.
 class MockOrdersRepository implements OrdersRepository {
-  MockOrdersRepository(this._lockers) {
+  MockOrdersRepository() {
     _orders = _demoSeed();
   }
 
-  final LockerService _lockers;
   final StreamController<List<CoffeeOrder>> _controller =
       StreamController<List<CoffeeOrder>>.broadcast();
   late List<CoffeeOrder> _orders;
@@ -84,8 +85,7 @@ class MockOrdersRepository implements OrdersRepository {
       required OrderStatus status,
       required String branchId,
       required int minutesAgo,
-      int? lockerNumber,
-      String? lockerPin,
+      required String pickupCode,
     }) {
       final createdAt = now.subtract(Duration(minutes: minutesAgo));
       return CoffeeOrder(
@@ -97,18 +97,18 @@ class MockOrdersRepository implements OrdersRepository {
         estimatedReadyAt: createdAt.add(const Duration(minutes: 5)),
         userId: 'demo',
         branchId: branchId,
-        lockerNumber: lockerNumber,
-        lockerPin: lockerPin,
+        pickupCode: pickupCode,
       );
     }
 
     return [
-      // --- Condesa: cola activa para el empleado de esa sucursal ---
+      // --- Condesa: cola activa para la cafetería de esa zona ---
       mk(
         id: 'CC-4829',
         branchId: 'condesa',
         status: OrderStatus.pending,
         minutesAgo: 2,
+        pickupCode: 'K4T9',
         items: [
           _item('americano', 'Americano', 4000, 'Café'),
           _item('postre-galleta', 'Sándwich de Galleta', 3900, 'Postre'),
@@ -119,6 +119,7 @@ class MockOrdersRepository implements OrdersRepository {
         branchId: 'condesa',
         status: OrderStatus.preparing,
         minutesAgo: 5,
+        pickupCode: 'M2P7',
         items: [_item('latte', 'Latte', 5000, 'Café')],
       ),
       mk(
@@ -126,8 +127,7 @@ class MockOrdersRepository implements OrdersRepository {
         branchId: 'condesa',
         status: OrderStatus.ready,
         minutesAgo: 9,
-        lockerNumber: 3,
-        lockerPin: '4417',
+        pickupCode: 'B8XR',
         items: [
           _item('cold-brew', 'Cold Brew', 5500, 'Café'),
           _item('pizza-doble-pepperoni', 'Doble Pepperoni', 13000, 'Pizza'),
@@ -139,6 +139,7 @@ class MockOrdersRepository implements OrdersRepository {
         branchId: 'roma',
         status: OrderStatus.preparing,
         minutesAgo: 7,
+        pickupCode: 'T3JQ',
         items: [_item('espresso', 'Espresso', 3500, 'Café', 2)],
       ),
       mk(
@@ -146,8 +147,7 @@ class MockOrdersRepository implements OrdersRepository {
         branchId: 'roma',
         status: OrderStatus.ready,
         minutesAgo: 14,
-        lockerNumber: 7,
-        lockerPin: '6630',
+        pickupCode: 'H6VC',
         items: [_item('americano', 'Americano', 4000, 'Café')],
       ),
       // --- Polanco ---
@@ -156,6 +156,7 @@ class MockOrdersRepository implements OrdersRepository {
         branchId: 'polanco',
         status: OrderStatus.pending,
         minutesAgo: 3,
+        pickupCode: 'W9LD',
         items: [_item('pizza-doble-pepperoni', 'Doble Pepperoni', 13000, 'Pizza')],
       ),
       // --- Condesa: uno ya recogido (para ventas del día) ---
@@ -164,8 +165,7 @@ class MockOrdersRepository implements OrdersRepository {
         branchId: 'condesa',
         status: OrderStatus.pickedUp,
         minutesAgo: 35,
-        lockerNumber: 5,
-        lockerPin: '1128',
+        pickupCode: 'R1NF',
         items: [
           _item('latte', 'Latte', 5000, 'Café'),
           _item('postre-galleta', 'Sándwich de Galleta', 3900, 'Postre'),
@@ -215,6 +215,7 @@ class MockOrdersRepository implements OrdersRepository {
       estimatedReadyAt: now.add(const Duration(minutes: 5)),
       userId: userId,
       branchId: branchId,
+      pickupCode: generatePickupCode(),
     );
     _orders = [..._orders, order];
     _emit();
@@ -228,32 +229,12 @@ class MockOrdersRepository implements OrdersRepository {
 
   @override
   Future<void> markReady(String orderId) async {
-    final assignment = await _lockers.assignLocker(orderId);
-    _update(
-      orderId,
-      (o) => o.copyWith(
-        status: OrderStatus.ready,
-        lockerNumber: assignment.lockerNumber,
-        lockerPin: assignment.pin,
-      ),
-    );
+    _update(orderId, (o) => o.copyWith(status: OrderStatus.ready));
   }
 
   @override
   Future<void> pickUp(String orderId) async {
-    final order = _byId(orderId);
-    if (order?.lockerNumber != null) {
-      await _lockers.openLocker(order!.lockerNumber!);
-      await _lockers.releaseLocker(order.lockerNumber!);
-    }
     _update(orderId, (o) => o.copyWith(status: OrderStatus.pickedUp));
-  }
-
-  CoffeeOrder? _byId(String id) {
-    for (final o in _orders) {
-      if (o.id == id) return o;
-    }
-    return null;
   }
 
   void _update(String id, CoffeeOrder Function(CoffeeOrder) transform) {
@@ -266,13 +247,12 @@ class MockOrdersRepository implements OrdersRepository {
 
 /// Selecciona la implementación según el modo (mock vs Firestore).
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
-  final lockers = ref.watch(lockerServiceProvider);
   if (AppConfig.useMockBackend) {
-    final repo = MockOrdersRepository(lockers);
+    final repo = MockOrdersRepository();
     ref.onDispose(repo.dispose);
     return repo;
   }
-  return FirestoreOrdersRepository(lockers);
+  return FirestoreOrdersRepository();
 });
 
 /// [CLIENTE] Id de la orden activa del usuario actual.

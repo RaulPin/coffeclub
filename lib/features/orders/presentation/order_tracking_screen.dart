@@ -32,7 +32,6 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   Timer? _timer;
   Duration _remaining = Duration.zero;
-  bool _pinShown = false;
 
   @override
   void initState() {
@@ -104,12 +103,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             _EtaCard(countdown: _countdown),
             const SizedBox(height: AppSpacing.md),
           ],
-          _LockerCard(
+          _PickupCodeCard(
             order: order,
-            unlocked: isReady,
+            ready: isReady,
             collected: isCollected,
-            pinShown: _pinShown,
-            onTogglePin: () => setState(() => _pinShown = !_pinShown),
           ),
           const SizedBox(height: AppSpacing.xl),
           _ActionButton(order: order),
@@ -295,22 +292,18 @@ class _EtaCard extends StatelessWidget {
   }
 }
 
-// ─── Locker + PIN card ──────────────────────────────────────────────────────
+// ─── Pickup code card ───────────────────────────────────────────────────────
 
-class _LockerCard extends StatelessWidget {
-  const _LockerCard({
+class _PickupCodeCard extends StatelessWidget {
+  const _PickupCodeCard({
     required this.order,
-    required this.unlocked,
+    required this.ready,
     required this.collected,
-    required this.pinShown,
-    required this.onTogglePin,
   });
 
   final CoffeeOrder order;
-  final bool unlocked;
+  final bool ready;
   final bool collected;
-  final bool pinShown;
-  final VoidCallback onTogglePin;
 
   @override
   Widget build(BuildContext context) {
@@ -319,10 +312,15 @@ class _LockerCard extends StatelessWidget {
     final fg = onDark ? Colors.white : AppColors.ink;
     final mutedFg =
         onDark ? Colors.white.withValues(alpha: 0.5) : AppColors.muted;
-    final pin = order.lockerPin ?? '----';
-    final lockerLabel = order.lockerNumber != null
-        ? 'Casillero #${order.lockerNumber}'
-        : 'Asignando casillero…';
+
+    final String note;
+    if (collected) {
+      note = 'Pedido recogido. ¡Gracias!';
+    } else if (ready) {
+      note = 'Muéstralo en la barra para recibir tu pedido.';
+    } else {
+      note = 'Enséñalo en la barra cuando tu pedido esté listo.';
+    }
 
     return Container(
       width: double.infinity,
@@ -331,36 +329,24 @@ class _LockerCard extends StatelessWidget {
         color: onDark ? AppColors.ink : AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         boxShadow: onDark ? null : AppColors.cardShadow,
+        border: ready && !onDark
+            ? Border.all(color: AppColors.success, width: 1.5)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CASILLERO',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
-                        color: mutedFg,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      lockerLabel,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: fg,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'CÓDIGO DE RECOGIDA',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                    color: mutedFg,
+                  ),
                 ),
               ),
               Container(
@@ -384,24 +370,14 @@ class _LockerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text(
-            'PIN DE ACCESO',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2,
-              color: mutedFg,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              for (final digit in pin.split(''))
+              for (final char in order.pickupCode.split(''))
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: AppSpacing.sm),
                     child: Container(
-                      height: 48,
+                      height: 64,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: onDark
@@ -410,11 +386,11 @@ class _LockerCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.button),
                       ),
                       child: Text(
-                        unlocked ? (pinShown ? digit : '•') : '•',
+                        char,
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 30,
                           fontWeight: FontWeight.w900,
-                          color: unlocked ? fg : AppColors.faint,
+                          color: fg,
                         ),
                       ),
                     ),
@@ -423,24 +399,16 @@ class _LockerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          if (!unlocked)
-            Text(
-              'El PIN aparece cuando tu pedido esté listo.',
-              style: TextStyle(color: mutedFg, fontSize: 12),
-            )
-          else if (!collected)
-            GestureDetector(
-              onTap: onTogglePin,
-              child: Text(
-                pinShown ? 'Ocultar PIN' : 'Revelar PIN',
-                style: TextStyle(
-                  color: mutedFg,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
+          Text(
+            note,
+            style: TextStyle(
+              color: ready && !collected ? AppColors.success : mutedFg,
+              fontSize: 13,
+              fontWeight: ready && !collected
+                  ? FontWeight.w700
+                  : FontWeight.w400,
             ),
+          ),
         ],
       ),
     );
@@ -456,16 +424,6 @@ class _ActionButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     switch (order.status) {
-      case OrderStatus.ready:
-        return SizedBox(
-          height: AppRadius.buttonHeight,
-          child: ElevatedButton.icon(
-            onPressed: () =>
-                ref.read(ordersRepositoryProvider).pickUp(order.id),
-            icon: const Icon(Icons.lock_open, size: 18),
-            label: Text('Abrir casillero ${order.lockerNumber ?? ''}'.trim()),
-          ),
-        );
       case OrderStatus.pickedUp:
         return SizedBox(
           height: AppRadius.buttonHeight,
@@ -477,29 +435,48 @@ class _ActionButton extends ConsumerWidget {
             child: const Text('Volver al menú'),
           ),
         );
+      case OrderStatus.ready:
+        return _InfoBanner(
+          icon: Icons.storefront_outlined,
+          text: 'Pasa a la barra y muestra tu código para recoger.',
+        );
       default:
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.notifications_none, size: 18, color: AppColors.muted),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Te avisaremos en cuanto esté listo en tu casillero.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
+        return _InfoBanner(
+          icon: Icons.notifications_none,
+          text: 'Te avisaremos en cuanto tu pedido esté listo.',
         );
     }
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.muted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
