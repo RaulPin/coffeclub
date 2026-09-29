@@ -412,7 +412,7 @@ class _MemberCta extends StatelessWidget {
       return SizedBox(
         height: AppRadius.buttonHeight,
         child: ElevatedButton(
-          onPressed: () => context.go('/menu'),
+          onPressed: () => context.go('/cafes'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           ),

@@ -6,6 +6,7 @@ import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
+import '../../features/discovery/presentation/discovery_screen.dart';
 import '../../features/menu/presentation/manage_menu_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/orders/presentation/order_tracking_screen.dart';
@@ -32,7 +33,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loggedIn = ref.read(authControllerProvider) != null;
       final loggingIn = location == '/login';
       if (!loggedIn) return loggingIn ? null : '/login';
-      if (loggingIn) return '/menu';
+      if (loggingIn) return '/cafes';
       return null;
     },
     routes: [
@@ -48,7 +49,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/menu', builder: (_, __) => const MenuScreen()),
+              GoRoute(
+                path: '/cafes',
+                builder: (_, __) => const DiscoveryScreen(),
+              ),
             ],
           ),
           StatefulShellBranch(
@@ -73,6 +77,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Menú de una cafetería (por encima del shell, con barra propia).
+      GoRoute(
+        path: '/cafe',
+        builder: (_, __) => const CafeMenuScreen(),
       ),
 
       // Checkout va por encima del shell (pantalla completa, sin barra).

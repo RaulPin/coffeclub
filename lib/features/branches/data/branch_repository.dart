@@ -16,18 +16,33 @@ class MockBranchRepository implements BranchRepository {
     return const [
       Branch(
         id: 'condesa',
-        name: 'Condesa',
+        name: 'Barra Condesa',
         address: 'Av. Michoacán 100, Condesa',
+        tagline: 'Café de especialidad · tostado propio',
+        etaMinutes: 4,
+        rating: 4.9,
+        imageUrl:
+            'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&h=400&fit=crop',
       ),
       Branch(
         id: 'roma',
-        name: 'Roma Norte',
+        name: 'Barra Roma Norte',
         address: 'Álvaro Obregón 50, Roma Nte.',
+        tagline: 'Brunch y métodos de filtrado',
+        etaMinutes: 6,
+        rating: 4.7,
+        imageUrl:
+            'https://images.unsplash.com/photo-1445116572660-236099ec97a0?w=600&h=400&fit=crop',
       ),
       Branch(
         id: 'polanco',
-        name: 'Polanco',
+        name: 'Barra Polanco',
         address: 'Emilio Castelar 20, Polanco',
+        tagline: 'Espresso bar & pastelería',
+        etaMinutes: 5,
+        rating: 4.8,
+        imageUrl:
+            'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&h=400&fit=crop',
       ),
     ];
   }

@@ -426,8 +426,8 @@ class _EmptyCart extends StatelessWidget {
             SizedBox(
               width: 200,
               child: ElevatedButton(
-                onPressed: () => context.go('/menu'),
-                child: const Text('Ver menú'),
+                onPressed: () => context.go('/cafes'),
+                child: const Text('Explorar cafeterías'),
               ),
             ),
           ],

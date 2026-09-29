@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/money.dart';
+import '../../staff/application/shift_controller.dart';
 import '../application/cafe_menu_controller.dart';
 import '../domain/product.dart';
 
@@ -17,7 +18,8 @@ class ManageMenuScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final products = ref.watch(cafeMenuProvider);
+    final cafeId = ref.watch(shiftControllerProvider)?.branchId ?? 'condesa';
+    final products = ref.watch(cafeMenuProvider(cafeId));
     final categories = <String>[
       ..._order.where((c) => products.any((p) => p.category == c)),
       ...products
@@ -29,7 +31,7 @@ class ManageMenuScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Menú de la cafetería')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(context, ref, null),
+        onPressed: () => _openForm(context, ref, cafeId, null),
         backgroundColor: AppColors.ink,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
@@ -65,11 +67,12 @@ class ManageMenuScreen extends ConsumerWidget {
                       in products.where((p) => p.category == category)) ...[
                     _ProductRow(
                       product: product,
-                      onEdit: () => _openForm(context, ref, product),
+                      onEdit: () => _openForm(context, ref, cafeId, product),
                       onToggle: () => ref
-                          .read(cafeMenuProvider.notifier)
-                          .toggleAvailable(product.id),
-                      onDelete: () => _confirmDelete(context, ref, product),
+                          .read(cafeMenuControllerProvider.notifier)
+                          .toggleAvailable(cafeId, product.id),
+                      onDelete: () =>
+                          _confirmDelete(context, ref, cafeId, product),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                   ],
@@ -80,7 +83,8 @@ class ManageMenuScreen extends ConsumerWidget {
     );
   }
 
-  void _openForm(BuildContext context, WidgetRef ref, Product? existing) {
+  void _openForm(
+      BuildContext context, WidgetRef ref, String cafeId, Product? existing) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -88,19 +92,19 @@ class ManageMenuScreen extends ConsumerWidget {
       builder: (_) => _ProductForm(
         existing: existing,
         onSave: (product) {
-          final notifier = ref.read(cafeMenuProvider.notifier);
+          final notifier = ref.read(cafeMenuControllerProvider.notifier);
           if (existing == null) {
-            notifier.add(product);
+            notifier.add(cafeId, product);
           } else {
-            notifier.update(product);
+            notifier.update(cafeId, product);
           }
         },
       ),
     );
   }
 
-  Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, Product product) async {
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref,
+      String cafeId, Product product) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -120,7 +124,7 @@ class ManageMenuScreen extends ConsumerWidget {
       ),
     );
     if (ok == true) {
-      ref.read(cafeMenuProvider.notifier).remove(product.id);
+      ref.read(cafeMenuControllerProvider.notifier).remove(cafeId, product.id);
     }
   }
 }

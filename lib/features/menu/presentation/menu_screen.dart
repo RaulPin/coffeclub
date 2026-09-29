@@ -7,20 +7,35 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../branches/data/branch_repository.dart';
+import '../../branches/domain/branch.dart';
 import '../../cart/application/cart_controller.dart';
 import '../../subscription/application/daily_perk.dart';
-import '../data/menu_repository.dart';
+import '../application/cafe_menu_controller.dart';
 import '../domain/product.dart';
 
 /// Categoría seleccionada en el filtro del menú. `null` = "Todos".
 final _menuFilterProvider = StateProvider.autoDispose<String?>((ref) => null);
 
-class MenuScreen extends ConsumerWidget {
-  const MenuScreen({super.key});
+/// Menú de una cafetería (la seleccionada en descubrimiento).
+class CafeMenuScreen extends ConsumerWidget {
+  const CafeMenuScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final menu = ref.watch(menuProvider);
+    final branches = ref.watch(branchesProvider).valueOrNull ?? const [];
+    final selectedId = ref.watch(selectedBranchIdProvider);
+    final matches = branches.where((b) => b.id == selectedId).toList();
+    final cafe = matches.isNotEmpty
+        ? matches.first
+        : (branches.isNotEmpty ? branches.first : null);
+
+    if (cafe == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final products = ref.watch(cafeClientMenuProvider(cafe.id));
     final user = ref.watch(authControllerProvider);
     final cartCount = ref.watch(cartControllerProvider).fold<int>(
           0,
@@ -28,10 +43,17 @@ class MenuScreen extends ConsumerWidget {
         );
     final filter = ref.watch(_menuFilterProvider);
 
+    final categories = <String>[
+      for (final c in const ['Café', 'Pizza', 'Postre'])
+        if (products.any((p) => p.category == c)) c,
+    ];
+    final visible = filter == null
+        ? products
+        : products.where((p) => p.category == filter).toList();
+
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: AppSpacing.screen,
-        title: const Text('Barra'),
+        title: Text(cafe.name),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -39,56 +61,146 @@ class MenuScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: menu.when(
-        loading: () => const _MenuSkeleton(),
-        error: (e, _) => _MenuError(onRetry: () => ref.invalidate(menuProvider)),
-        data: (products) {
-          final categories = <String>[
-            for (final c in const ['Café', 'Pizza', 'Postre'])
-              if (products.any((p) => p.category == c)) c,
-          ];
-          final visible = filter == null
-              ? products
-              : products.where((p) => p.category == filter).toList();
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screen,
-              AppSpacing.lg,
-              AppSpacing.screen,
-              AppSpacing.xxl,
-            ),
-            children: [
-              const _Hero(),
-              const SizedBox(height: AppSpacing.lg),
-              const _BranchSelector(),
-              const SizedBox(height: AppSpacing.lg),
-              if (user != null && !user.isSubscriber) ...[
-                _SubscriptionBanner(
-                  onTap: () => context.push('/subscription'),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              _FilterChips(
-                categories: categories,
-                selected: filter,
-                onSelected: (c) =>
-                    ref.read(_menuFilterProvider.notifier).state = c,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          AppSpacing.lg,
+          AppSpacing.screen,
+          AppSpacing.xxl,
+        ),
+        children: [
+          _CafeHeader(cafe: cafe),
+          const SizedBox(height: AppSpacing.lg),
+          if (user != null && !user.isSubscriber) ...[
+            _SubscriptionBanner(onTap: () => context.push('/subscription')),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          _FilterChips(
+            categories: categories,
+            selected: filter,
+            onSelected: (c) =>
+                ref.read(_menuFilterProvider.notifier).state = c,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (visible.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 40),
+              child: Center(
+                child: Text('Esta cafetería aún no tiene productos aquí.',
+                    style: TextStyle(color: AppColors.muted)),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              for (final product in visible) ...[
-                _ProductCard(product: product),
-                const SizedBox(height: AppSpacing.md),
-              ],
+            )
+          else
+            for (final product in visible) ...[
+              _ProductCard(product: product),
+              const SizedBox(height: AppSpacing.md),
             ],
-          );
-        },
+        ],
       ),
     );
   }
 }
 
-// ─── App bar cart button ───────────────────────────────────────────────────
+// ─── Café header ────────────────────────────────────────────────────────────
+
+class _CafeHeader extends StatelessWidget {
+  const _CafeHeader({required this.cafe});
+  final Branch cafe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 150,
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.sheet),
+        color: AppColors.ink,
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (cafe.imageUrl != null)
+            Image.network(
+              cafe.imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.75),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  cafe.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                if (cafe.tagline.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    cafe.tagline,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded,
+                        size: 15, color: Color(0xFFF6C445)),
+                    const SizedBox(width: 3),
+                    Text(
+                      cafe.rating.toStringAsFixed(1),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Icon(Icons.schedule,
+                        size: 14, color: Colors.white.withValues(alpha: 0.8)),
+                    const SizedBox(width: 3),
+                    Text(
+                      '~${cafe.etaMinutes} min',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── App bar cart button ────────────────────────────────────────────────────
 
 class _CartButton extends StatelessWidget {
   const _CartButton({required this.count});
@@ -134,133 +246,6 @@ class _CartButton extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─── Hero banner ────────────────────────────────────────────────────────────
-
-class _Hero extends StatelessWidget {
-  const _Hero();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 160,
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.sheet),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A1A), AppColors.ink],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -8,
-            right: -8,
-            child: Icon(
-              Icons.local_cafe_outlined,
-              size: 96,
-              color: Colors.white.withValues(alpha: 0.06),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'SIN FILA',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Ordena antes.\nRecoge en barra.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  height: 1.1,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Branch selector ────────────────────────────────────────────────────────
-
-class _BranchSelector extends ConsumerWidget {
-  const _BranchSelector();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final branches = ref.watch(branchesProvider).valueOrNull ?? const [];
-    if (branches.isEmpty) return const SizedBox.shrink();
-
-    final selectedId =
-        ref.watch(selectedBranchIdProvider) ?? branches.first.id;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.location_on_outlined,
-              size: 18, color: AppColors.muted),
-          const SizedBox(width: AppSpacing.sm),
-          const Text(
-            'Recoger en',
-            style: TextStyle(
-              color: AppColors.muted,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedId,
-                isExpanded: true,
-                borderRadius: BorderRadius.circular(AppRadius.button),
-                style: const TextStyle(
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.ink),
-                items: [
-                  for (final b in branches)
-                    DropdownMenuItem(value: b.id, child: Text(b.name)),
-                ],
-                onChanged: (id) =>
-                    ref.read(selectedBranchIdProvider.notifier).state = id,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -474,8 +459,6 @@ class _ProductCard extends ConsumerWidget {
   }
 }
 
-/// Imagen del producto; si no hay `imageUrl`, muestra un placeholder elegante
-/// con el ícono de la categoría.
 class _ProductImage extends StatelessWidget {
   const _ProductImage({required this.product});
   final Product product;
@@ -511,7 +494,6 @@ class _ProductImage extends StatelessWidget {
   }
 }
 
-/// Badge del beneficio de socio sobre la imagen del producto elegible.
 class _PerkBadge extends StatelessWidget {
   const _PerkBadge({required this.isSubscriber, required this.available});
   final bool isSubscriber;
@@ -519,13 +501,10 @@ class _PerkBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Socio con beneficio ya usado: mensaje en verde-tenue distinto.
     final usedToday = isSubscriber && !available;
     final bg = usedToday ? AppColors.success : AppColors.ink;
     final text = isSubscriber
-        ? (available
-            ? 'Tu Americano por \$1 hoy'
-            : 'Beneficio de hoy usado')
+        ? (available ? 'Tu Americano por \$1 hoy' : 'Beneficio de hoy usado')
         : '1 café al día por \$1 — socio';
 
     return Container(
@@ -588,75 +567,6 @@ class _AddButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(AppRadius.button),
         ),
         child: const Icon(Icons.add, color: Colors.white, size: 20),
-      ),
-    );
-  }
-}
-
-// ─── Loading / error states ─────────────────────────────────────────────────
-
-class _MenuSkeleton extends StatelessWidget {
-  const _MenuSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.screen),
-      children: [
-        _box(160, AppRadius.sheet),
-        const SizedBox(height: AppSpacing.lg),
-        _box(48, AppRadius.button),
-        const SizedBox(height: AppSpacing.lg),
-        for (var i = 0; i < 3; i++) ...[
-          _box(230, AppRadius.card),
-          const SizedBox(height: AppSpacing.md),
-        ],
-      ],
-    );
-  }
-
-  Widget _box(double height, double radius) => Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: AppColors.border),
-        ),
-      );
-}
-
-class _MenuError extends StatelessWidget {
-  const _MenuError({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined,
-                size: 40, color: AppColors.muted),
-            const SizedBox(height: AppSpacing.lg),
-            const Text(
-              'No pudimos cargar el menú',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            const Text(
-              'Revisa tu conexión e inténtalo de nuevo.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            OutlinedButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
       ),
     );
   }

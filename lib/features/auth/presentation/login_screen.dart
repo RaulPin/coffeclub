@@ -20,7 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _signIn(SocialProvider provider) async {
     setState(() => _loading = true);
     await ref.read(authControllerProvider.notifier).signIn(provider);
-    if (mounted) context.go('/menu');
+    if (mounted) context.go('/cafes');
   }
 
   @override

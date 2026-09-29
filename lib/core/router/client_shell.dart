@@ -13,7 +13,7 @@ class ClientShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   static const _items = [
-    (icon: Icons.local_cafe_outlined, label: 'Menú'),
+    (icon: Icons.storefront_outlined, label: 'Cafeterías'),
     (icon: Icons.shopping_bag_outlined, label: 'Carrito'),
     (icon: Icons.schedule, label: 'Mi pedido'),
     (icon: Icons.card_membership, label: 'Club'),

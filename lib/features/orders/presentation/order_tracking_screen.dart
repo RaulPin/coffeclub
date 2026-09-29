@@ -430,9 +430,9 @@ class _ActionButton extends ConsumerWidget {
           child: ElevatedButton(
             onPressed: () {
               ref.read(activeOrderIdProvider.notifier).state = null;
-              context.go('/menu');
+              context.go('/cafes');
             },
-            child: const Text('Volver al menú'),
+            child: const Text('Volver al inicio'),
           ),
         );
       case OrderStatus.ready:
@@ -524,8 +524,8 @@ class _NoActiveOrder extends StatelessWidget {
               SizedBox(
                 width: 200,
                 child: ElevatedButton(
-                  onPressed: () => context.go('/menu'),
-                  child: const Text('Ir al menú'),
+                  onPressed: () => context.go('/cafes'),
+                  child: const Text('Explorar cafeterías'),
                 ),
               ),
             ],
