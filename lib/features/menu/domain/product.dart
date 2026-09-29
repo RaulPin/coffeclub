@@ -8,6 +8,7 @@ class Product {
     required this.category,
     this.imageUrl,
     this.eligibleForDailyPerk = false,
+    this.available = true,
   });
 
   final String id;
@@ -23,5 +24,29 @@ class Product {
   /// ("1 café al día por $1"). Hoy: solo el Americano.
   final bool eligibleForDailyPerk;
 
+  /// Si el producto está disponible para pedir. La cafetería lo puede
+  /// activar/desactivar sin borrarlo.
+  final bool available;
+
   double get price => priceCents / 100;
+
+  Product copyWith({
+    String? name,
+    String? description,
+    int? priceCents,
+    String? category,
+    String? imageUrl,
+    bool? eligibleForDailyPerk,
+    bool? available,
+  }) =>
+      Product(
+        id: id,
+        name: name ?? this.name,
+        description: description ?? this.description,
+        priceCents: priceCents ?? this.priceCents,
+        category: category ?? this.category,
+        imageUrl: imageUrl ?? this.imageUrl,
+        eligibleForDailyPerk: eligibleForDailyPerk ?? this.eligibleForDailyPerk,
+        available: available ?? this.available,
+      );
 }
