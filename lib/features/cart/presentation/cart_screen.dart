@@ -235,27 +235,26 @@ class _SummaryBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (pricing.perkApplied) ...[
+            _Line(
+              label: 'Subtotal',
+              value: formatMxn(pricing.subtotalCents),
+              muted: true,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (pricing.isMember)
               _Line(
-                label: 'Subtotal',
-                value: formatMxn(pricing.subtotalCents),
+                label: 'Cuota de servicio · Barra+',
+                value: 'Incluida',
+                muted: true,
+                valueColor: AppColors.success,
+                valueBold: true,
+              )
+            else
+              _Line(
+                label: 'Cuota de servicio',
+                value: formatMxn(pricing.serviceFeeCents),
                 muted: true,
               ),
-              const SizedBox(height: AppSpacing.sm),
-              _Line(
-                label: 'Beneficio socio (1 Americano)',
-                value: '−${formatMxn(pricing.perkDiscountCents)}',
-                color: AppColors.success,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            _Line(
-              label: 'Recogida en barra',
-              value: 'Gratis',
-              muted: true,
-              valueColor: AppColors.success,
-              valueBold: true,
-            ),
             const SizedBox(height: AppSpacing.md),
             const Divider(),
             const SizedBox(height: AppSpacing.md),

@@ -2,54 +2,59 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../auth/application/auth_controller.dart';
-import '../../subscription/application/daily_perk.dart';
 import 'cart_controller.dart';
 
-/// Desglose de precio del carrito, incluyendo el beneficio de socio.
+/// Desglose de precio del carrito según el modelo de negocio de Barra:
+/// el cliente paga el subtotal de productos + una cuota de servicio fija
+/// (que se elimina para socios Barra+). Aparte, Barra cobra una comisión a la
+/// cafetería sobre el subtotal (no la ve el cliente).
 class CartPricing {
   const CartPricing({
     required this.subtotalCents,
-    required this.perkDiscountCents,
+    required this.serviceFeeCents,
     required this.totalCents,
-    required this.perkApplied,
+    required this.isMember,
+    required this.commissionCents,
+    required this.cafeNetCents,
   });
 
+  /// Subtotal de productos.
   final int subtotalCents;
 
-  /// Descuento aplicado por el beneficio (1 Americano a $1).
-  final int perkDiscountCents;
+  /// Cuota de servicio que paga el cliente (0 si es socio o carrito vacío).
+  final int serviceFeeCents;
+
+  /// Total que paga el cliente (subtotal + cuota de servicio).
   final int totalCents;
 
-  /// `true` si en este carrito se está aplicando el beneficio del Americano.
-  final bool perkApplied;
+  /// Si el cliente es socio Barra+ (sin cuota de servicio).
+  final bool isMember;
+
+  /// Comisión de Barra a la cafetería (sobre el subtotal).
+  final int commissionCents;
+
+  /// Lo que recibe la cafetería (subtotal − comisión).
+  final int cafeNetCents;
 }
 
-/// Calcula el total aplicando el beneficio de socio: si el usuario es socio,
-/// aún no usó su beneficio hoy y el carrito incluye un producto elegible
-/// (Americano), UNA unidad se cobra a $1.
 final cartPricingProvider = Provider<CartPricing>((ref) {
   final items = ref.watch(cartControllerProvider);
   final user = ref.watch(authControllerProvider);
-  final perkAvailable = ref.watch(perkAvailableTodayProvider);
 
   final subtotal = items.fold<int>(0, (sum, item) => sum + item.subtotalCents);
+  final isMember = user?.isSubscriber ?? false;
 
-  final eligible = items
-      .where((item) => item.product.eligibleForDailyPerk)
-      .fold<int?>(null, (found, item) => found ?? item.product.priceCents);
+  // Socios no pagan cuota de servicio; tampoco si el carrito está vacío.
+  final fee = (subtotal == 0 || isMember) ? 0 : AppConfig.serviceFeeCents;
 
-  final isSubscriber = user?.isSubscriber ?? false;
-
-  var discount = 0;
-  if (isSubscriber && perkAvailable && eligible != null) {
-    final raw = eligible - AppConfig.socioCoffeePriceCents;
-    discount = raw < 0 ? 0 : raw;
-  }
+  final commission = (subtotal * AppConfig.platformCommissionRate).round();
 
   return CartPricing(
     subtotalCents: subtotal,
-    perkDiscountCents: discount,
-    totalCents: subtotal - discount,
-    perkApplied: discount > 0,
+    serviceFeeCents: fee,
+    totalCents: subtotal + fee,
+    isMember: isMember,
+    commissionCents: commission,
+    cafeNetCents: subtotal - commission,
   );
 });

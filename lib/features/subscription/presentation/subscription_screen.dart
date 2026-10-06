@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/money.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../checkout/data/payment_service.dart';
-import '../application/daily_perk.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
@@ -25,7 +26,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     if (result.success) {
       ref.read(authControllerProvider.notifier).markAsSubscriber();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Bienvenido al Club!')),
+        const SnackBar(content: Text('¡Bienvenido a Barra+!')),
       );
     } else {
       setState(() => _loading = false);
@@ -38,11 +39,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider);
-    final isSubscriber = user?.isSubscriber ?? false;
-    final perkAvailable = ref.watch(perkAvailableTodayProvider);
+    final isMember = user?.isSubscriber ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Club Coffe')),
+      appBar: AppBar(title: const Text('Barra+')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.screen,
@@ -51,20 +51,16 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           AppSpacing.xxl,
         ),
         children: [
-          _ClubCard(
-            isSubscriber: isSubscriber,
-            perkAvailable: perkAvailable,
-            memberName: user?.name ?? 'Socio',
-          ),
+          _ClubCard(isMember: isMember, memberName: user?.name ?? 'Socio'),
           const SizedBox(height: AppSpacing.xl),
-          _SectionLabel(isSubscriber ? 'Tus beneficios' : 'Beneficios del Club'),
+          _SectionLabel(isMember ? 'Tus beneficios' : 'Beneficios Barra+'),
           const SizedBox(height: AppSpacing.md),
           const _BenefitsGrid(),
           const SizedBox(height: AppSpacing.xl),
-          if (!isSubscriber)
+          if (!isMember)
             _JoinCta(loading: _loading, onJoin: _subscribe)
           else
-            _MemberCta(perkAvailable: perkAvailable),
+            const _MemberCta(),
         ],
       ),
     );
@@ -74,14 +70,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 // ─── Club card ──────────────────────────────────────────────────────────────
 
 class _ClubCard extends StatelessWidget {
-  const _ClubCard({
-    required this.isSubscriber,
-    required this.perkAvailable,
-    required this.memberName,
-  });
-
-  final bool isSubscriber;
-  final bool perkAvailable;
+  const _ClubCard({required this.isMember, required this.memberName});
+  final bool isMember;
   final String memberName;
 
   @override
@@ -120,40 +110,31 @@ class _ClubCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppRadius.button),
                       ),
-                      child: const Icon(Icons.local_cafe_outlined,
+                      child: const Icon(Icons.bolt,
                           size: 18, color: Colors.white),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'BARRA',
+                      'BARRA+',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 3,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                if (!isSubscriber) ...[
-                  Text(
-                    'MEMBRESÍA CLUB',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
+                if (!isMember) ...[
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      const Text(
-                        '\$365',
-                        style: TextStyle(
+                      Text(
+                        formatMxn(AppConfig.membershipMonthlyCents)
+                            .replaceAll(' MXN', ''),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 40,
                           fontWeight: FontWeight.w900,
@@ -161,7 +142,7 @@ class _ClubCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        ' / año',
+                        ' / mes',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 18,
@@ -172,14 +153,46 @@ class _ClubCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Un café al día por \$1 — todos los días del año.',
+                    'Sin cuota de servicio en todos tus pedidos, '
+                    'en cualquier cafetería.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 14,
                     ),
                   ),
                 ] else ...[
-                  _StatusPill(available: perkAvailable),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.success,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        const Text(
+                          'Socio activo',
+                          style: TextStyle(
+                            color: Color(0xFF5DD68E),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     memberName,
@@ -191,104 +204,14 @@ class _ClubCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Membresía anual · \$1 por día',
+                    'Tu membresía Barra+ está activa · \$29 / mes',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: perkAvailable
-                          ? AppColors.success.withValues(alpha: 0.18)
-                          : Colors.white.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(AppRadius.button),
-                      border: Border.all(
-                        color: perkAvailable
-                            ? AppColors.success.withValues(alpha: 0.35)
-                            : Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          perkAvailable
-                              ? '¡Disponible hoy!'
-                              : 'Beneficio usado',
-                          style: TextStyle(
-                            color: perkAvailable
-                                ? const Color(0xFF5DD68E)
-                                : Colors.white.withValues(alpha: 0.5),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          perkAvailable
-                              ? 'Tu Americano por \$1 MXN'
-                              : 'Vuelve mañana por tu Americano',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.available});
-  final bool available;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: available
-            ? AppColors.success.withValues(alpha: 0.25)
-            : Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: available
-                  ? AppColors.success
-                  : Colors.white.withValues(alpha: 0.3),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            'Socio activo',
-            style: TextStyle(
-              color: available
-                  ? const Color(0xFF5DD68E)
-                  : Colors.white.withValues(alpha: 0.5),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -303,9 +226,9 @@ class _BenefitsGrid extends StatelessWidget {
   const _BenefitsGrid();
 
   static const _benefits = [
-    (Icons.local_cafe_outlined, '1 café al día', 'Americano por \$1 cada día'),
-    (Icons.bolt_outlined, 'Sin fila', 'Recoge directo en la barra'),
-    (Icons.lock_outline, 'Recogida con PIN', 'Acceso seguro 24/7'),
+    (Icons.payments_outlined, 'Sin cuota de servicio', 'Ahorras \$10 por pedido'),
+    (Icons.storefront_outlined, 'En todos los cafés', 'Aplica en toda Barra'),
+    (Icons.bolt_outlined, 'Sin fila', 'Pide antes y recoge en barra'),
     (Icons.event_repeat_outlined, 'Sin permanencia', 'Cancela cuando quieras'),
   ];
 
@@ -386,8 +309,8 @@ class _JoinCta extends StatelessWidget {
                 : const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Unirme al Club'),
-                      Text('\$365 / año'),
+                      Text('Unirme a Barra+'),
+                      Text('\$29 / mes'),
                     ],
                   ),
           ),
@@ -403,73 +326,16 @@ class _JoinCta extends StatelessWidget {
 }
 
 class _MemberCta extends StatelessWidget {
-  const _MemberCta({required this.perkAvailable});
-  final bool perkAvailable;
+  const _MemberCta();
 
   @override
   Widget build(BuildContext context) {
-    if (perkAvailable) {
-      return SizedBox(
-        height: AppRadius.buttonHeight,
-        child: ElevatedButton(
-          onPressed: () => context.go('/cafes'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.local_cafe_outlined,
-                      size: 18, color: Colors.white),
-                  SizedBox(width: AppSpacing.sm),
-                  Text('Pedir mi Americano'),
-                ],
-              ),
-              Text('\$1 MXN'),
-            ],
-          ),
-        ),
-      );
-    }
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.paper,
-              borderRadius: BorderRadius.circular(AppRadius.button),
-            ),
-            child: const Icon(Icons.check_circle_outline,
-                color: AppColors.muted),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Beneficio canjeado hoy',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Vuelve mañana por tu Americano de \$1.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
+    return SizedBox(
+      height: AppRadius.buttonHeight,
+      child: ElevatedButton.icon(
+        onPressed: () => context.go('/cafes'),
+        icon: const Icon(Icons.storefront_outlined, size: 18),
+        label: const Text('Explorar cafeterías'),
       ),
     );
   }

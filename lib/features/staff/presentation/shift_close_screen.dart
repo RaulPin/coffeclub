@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/utils/money.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
@@ -27,11 +28,16 @@ class ShiftCloseScreen extends ConsumerWidget {
       );
     }
 
-    // Vista previa de los totales del turno (mismo cálculo que el cierre).
+    // Economía del turno para la cafetería (comisión de Barra sobre productos).
     final duringShift =
         orders.where((o) => !o.createdAt.isBefore(shift.startedAt)).toList();
-    final totalCents =
-        duringShift.fold<int>(0, (sum, o) => sum + o.totalCents);
+    final productSales = duringShift.fold<int>(
+      0,
+      (sum, o) => sum + o.items.fold<int>(0, (s, i) => s + i.subtotalCents),
+    );
+    final commission =
+        (productSales * AppConfig.platformCommissionRate).round();
+    final cafeNet = productSales - commission;
     final timeFmt = DateFormat('HH:mm');
 
     return Scaffold(
@@ -51,7 +57,16 @@ class ShiftCloseScreen extends ConsumerWidget {
             _StatRow(label: 'Órdenes atendidas', value: '${duringShift.length}'),
             const Divider(),
             _StatRow(
-                label: 'Ventas del turno', value: formatCents(totalCents)),
+                label: 'Ventas (productos)', value: formatMxn(productSales)),
+            const Divider(),
+            _StatRow(
+                label: 'Comisión Barra (5%)',
+                value: '−${formatMxn(commission)}'),
+            const Divider(),
+            _StatRow(
+                label: 'Neto para la cafetería',
+                value: formatMxn(cafeNet),
+                strong: true),
             const Divider(),
             _StatRow(
                 label: 'Pedidos aún por recoger',
@@ -137,9 +152,14 @@ class ShiftCloseScreen extends ConsumerWidget {
 }
 
 class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
+  const _StatRow({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
   final String label;
   final String value;
+  final bool strong;
 
   @override
   Widget build(BuildContext context) {
@@ -148,10 +168,14 @@ class _StatRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16)),
+          Text(label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+              )),
           Text(value,
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              style: TextStyle(
+                  fontSize: strong ? 20 : 18, fontWeight: FontWeight.w800)),
         ],
       ),
     );

@@ -12,13 +12,19 @@ class AppConfig {
   /// Nombre comercial.
   static const String appName = 'Barra';
 
-  /// Precio del café para socios (en centavos de MXN).
-  static const int socioCoffeePriceCents = 100; // $1.00
+  // --- Modelo de negocio ---
+
+  /// Comisión que Barra cobra a la cafetería por pedido (sobre el subtotal
+  /// de productos). 0.05 = 5%.
+  static const double platformCommissionRate = 0.05;
+
+  /// Cuota de servicio fija que paga el cliente por pedido (centavos de MXN).
+  static const int serviceFeeCents = 1000; // $10.00
+
+  /// Precio de la membresía "Barra+" (centavos de MXN / mes).
+  /// Beneficio: se elimina la cuota de servicio en todos los pedidos.
+  static const int membershipMonthlyCents = 2900; // $29.00
 
   // --- Stripe (rellenar al integrar pagos) ---
   static const String stripePublishableKey = 'pk_test_TODO';
-
-  // --- Casilleros / lockers ---
-  /// Cantidad de casilleros disponibles en la sucursal (ver imagen: 12 cajas).
-  static const int lockerCount = 12;
 }

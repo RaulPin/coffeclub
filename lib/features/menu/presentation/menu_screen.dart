@@ -9,7 +9,6 @@ import '../../auth/application/auth_controller.dart';
 import '../../branches/data/branch_repository.dart';
 import '../../branches/domain/branch.dart';
 import '../../cart/application/cart_controller.dart';
-import '../../subscription/application/daily_perk.dart';
 import '../application/cafe_menu_controller.dart';
 import '../domain/product.dart';
 
@@ -377,17 +376,12 @@ class _FilterChips extends StatelessWidget {
 
 // ─── Product card ───────────────────────────────────────────────────────────
 
-class _ProductCard extends ConsumerWidget {
+class _ProductCard extends StatelessWidget {
   const _ProductCard({required this.product});
   final Product product;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authControllerProvider);
-    final perkAvailable = ref.watch(perkAvailableTodayProvider);
-    final isSubscriber = user?.isSubscriber ?? false;
-    final showPerk = product.eligibleForDailyPerk;
-
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -398,21 +392,7 @@ class _ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            children: [
-              _ProductImage(product: product),
-              if (showPerk)
-                Positioned(
-                  top: AppSpacing.md,
-                  left: AppSpacing.md,
-                  right: AppSpacing.md,
-                  child: _PerkBadge(
-                    isSubscriber: isSubscriber,
-                    available: perkAvailable,
-                  ),
-                ),
-            ],
-          ),
+          _ProductImage(product: product),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
@@ -490,53 +470,6 @@ class _ProductImage extends StatelessWidget {
       color: AppColors.paper,
       alignment: Alignment.center,
       child: Icon(_categoryIcon, size: 44, color: AppColors.faint),
-    );
-  }
-}
-
-class _PerkBadge extends StatelessWidget {
-  const _PerkBadge({required this.isSubscriber, required this.available});
-  final bool isSubscriber;
-  final bool available;
-
-  @override
-  Widget build(BuildContext context) {
-    final usedToday = isSubscriber && !available;
-    final bg = usedToday ? AppColors.success : AppColors.ink;
-    final text = isSubscriber
-        ? (available ? 'Tu Americano por \$1 hoy' : 'Beneficio de hoy usado')
-        : '1 café al día por \$1 — socio';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            usedToday ? Icons.check_circle_outline : Icons.star_rounded,
-            size: 14,
-            color: Colors.white,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

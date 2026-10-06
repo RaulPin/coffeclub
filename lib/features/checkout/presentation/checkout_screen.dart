@@ -10,7 +10,6 @@ import '../../branches/data/branch_repository.dart';
 import '../../cart/application/cart_controller.dart';
 import '../../cart/application/pricing.dart';
 import '../../orders/data/orders_repository.dart';
-import '../../subscription/application/daily_perk.dart';
 import '../data/checkout_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -46,12 +45,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         SnackBar(content: Text('Pago no completado: ${result.error ?? ''}')),
       );
       return;
-    }
-
-    // Si se usó el beneficio del Americano, márcalo consumido por hoy.
-    // (En producción, esto lo confirma el servidor al registrar la orden.)
-    if (pricing.perkApplied) {
-      ref.read(lastPerkRedemptionProvider.notifier).state = DateTime.now();
     }
 
     ref.read(activeOrderIdProvider.notifier).state = result.orderId;
@@ -111,22 +104,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
             child: Column(
               children: [
-                if (pricing.perkApplied) ...[
+                _Line(
+                  label: 'Subtotal',
+                  value: formatMxn(pricing.subtotalCents),
+                  muted: true,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (pricing.isMember)
                   _Line(
-                    label: 'Subtotal',
-                    value: formatMxn(pricing.subtotalCents),
+                    label: 'Cuota de servicio · Barra+',
+                    value: 'Incluida',
+                    color: AppColors.success,
+                  )
+                else
+                  _Line(
+                    label: 'Cuota de servicio',
+                    value: formatMxn(pricing.serviceFeeCents),
                     muted: true,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _Line(
-                    label: 'Beneficio socio (1 Americano)',
-                    value: '−${formatMxn(pricing.perkDiscountCents)}',
-                    color: AppColors.success,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  const Divider(),
-                  const SizedBox(height: AppSpacing.md),
-                ],
+                const SizedBox(height: AppSpacing.md),
+                const Divider(),
+                const SizedBox(height: AppSpacing.md),
                 _Line(
                   label: 'Total a pagar',
                   value: formatMxn(total),
