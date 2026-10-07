@@ -9,6 +9,13 @@ class AppConfig {
   /// Mientras esté en `true`, la app funciona en modo demo con datos mock.
   static const bool useMockBackend = true;
 
+  /// Usar Firestore para los DATOS (cafés, menús, pedidos) aunque el login y
+  /// los pagos sigan en modo demo. Permite migrar a la base real por partes.
+  static const bool useFirestoreData = true;
+
+  /// `true` si los datos deben leerse/escribirse en Firestore.
+  static bool get dataFromFirestore => !useMockBackend || useFirestoreData;
+
   /// Nombre comercial.
   static const String appName = 'Barra';
 
