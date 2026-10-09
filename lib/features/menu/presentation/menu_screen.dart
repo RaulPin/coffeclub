@@ -273,7 +273,7 @@ class _SubscriptionBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Únete al Club',
+                      'Únete a Barra+',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.55),
                         fontSize: 11,
@@ -283,7 +283,7 @@ class _SubscriptionBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     const Text(
-                      '1 café al día por \$1',
+                      'Sin cuota de servicio',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -293,7 +293,7 @@ class _SubscriptionBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '\$365 al año · cancela cuando quieras',
+                      '\$29 al mes · cancela cuando quieras',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 13,
