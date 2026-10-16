@@ -100,7 +100,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           _ProgressTracker(currentIndex: stageIndex),
           const SizedBox(height: AppSpacing.xl),
           if (!isReady) ...[
-            _EtaCard(countdown: _countdown),
+            _EtaCard(
+              countdown: _countdown,
+              almostReady: _remaining == Duration.zero,
+            ),
             const SizedBox(height: AppSpacing.md),
           ],
           _PickupCodeCard(
@@ -247,8 +250,9 @@ class _StageDot extends StatelessWidget {
 // ─── ETA card ───────────────────────────────────────────────────────────────
 
 class _EtaCard extends StatelessWidget {
-  const _EtaCard({required this.countdown});
+  const _EtaCard({required this.countdown, this.almostReady = false});
   final String countdown;
+  final bool almostReady;
 
   @override
   Widget build(BuildContext context) {
@@ -262,9 +266,9 @@ class _EtaCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            'TIEMPO ESTIMADO',
-            style: TextStyle(
+          Text(
+            almostReady ? 'TU PEDIDO' : 'TIEMPO ESTIMADO',
+            style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 2,
@@ -273,18 +277,20 @@ class _EtaCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            countdown,
-            style: const TextStyle(
-              fontSize: 52,
+            almostReady ? 'Casi listo' : countdown,
+            style: TextStyle(
+              fontSize: almostReady ? 34 : 52,
               fontWeight: FontWeight.w900,
-              letterSpacing: -1,
-              fontFeatures: [FontFeature.tabularFigures()],
+              letterSpacing: almostReady ? -0.5 : -1,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'minutos restantes',
-            style: TextStyle(color: AppColors.muted, fontSize: 13),
+          Text(
+            almostReady
+                ? 'Está por salir de la barra'
+                : 'minutos restantes',
+            style: const TextStyle(color: AppColors.muted, fontSize: 13),
           ),
         ],
       ),
