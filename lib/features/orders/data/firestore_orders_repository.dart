@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../cart/domain/cart_item.dart';
 import '../../menu/domain/product.dart';
@@ -9,16 +8,12 @@ import 'orders_repository.dart';
 /// Implementación real sobre Cloud Firestore.
 ///
 /// - Lecturas: `snapshots()` en tiempo real (los dos extremos ven lo mismo).
-/// - Escrituras de estado: vía Cloud Functions para transaccionalidad.
-///
-/// > Nota: en el flujo endurecido de producción, la ORDEN la crea el webhook
-/// > de Stripe tras confirmarse el pago (ver `StripeCheckoutService` y las
-/// > Cloud Functions). Aquí `create` queda disponible para pruebas directas.
+/// - Escrituras de estado: updates directos (en producción endurecida se
+///   moverían a Cloud Functions / webhook de Stripe).
 class FirestoreOrdersRepository implements OrdersRepository {
   FirestoreOrdersRepository();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   CollectionReference<Map<String, dynamic>> get _orders =>
       _db.collection('orders');
@@ -33,10 +28,15 @@ class FirestoreOrdersRepository implements OrdersRepository {
 
   @override
   Stream<List<CoffeeOrder>> watchActive() => _orders
-      .where('status', whereIn: _activeStatuses)
-      .orderBy('createdAt')
-      .snapshots()
-      .map((snap) => snap.docs.map(_fromDoc).whereType<CoffeeOrder>().toList());
+          .where('status', whereIn: _activeStatuses)
+          .snapshots()
+          .map((snap) {
+        final list =
+            snap.docs.map(_fromDoc).whereType<CoffeeOrder>().toList();
+        // Orden en cliente para no requerir un índice compuesto en Firestore.
+        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        return list;
+      });
 
   @override
   Stream<CoffeeOrder?> watchOrder(String orderId) =>
@@ -65,14 +65,12 @@ class FirestoreOrdersRepository implements OrdersRepository {
       _orders.doc(orderId).update({'status': 'preparing'});
 
   @override
-  Future<void> markReady(String orderId) async {
-    await _functions.httpsCallable('markOrderReady').call({'orderId': orderId});
-  }
+  Future<void> markReady(String orderId) =>
+      _orders.doc(orderId).update({'status': 'ready'});
 
   @override
-  Future<void> pickUp(String orderId) async {
-    await _functions.httpsCallable('confirmPickup').call({'orderId': orderId});
-  }
+  Future<void> pickUp(String orderId) =>
+      _orders.doc(orderId).update({'status': 'pickedUp'});
 
   // --- Mapeo Firestore <-> dominio ---
 

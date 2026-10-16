@@ -247,12 +247,12 @@ class MockOrdersRepository implements OrdersRepository {
 
 /// Selecciona la implementación según el modo (mock vs Firestore).
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
-  if (AppConfig.useMockBackend) {
-    final repo = MockOrdersRepository();
-    ref.onDispose(repo.dispose);
-    return repo;
+  if (AppConfig.dataFromFirestore) {
+    return FirestoreOrdersRepository();
   }
-  return FirestoreOrdersRepository();
+  final repo = MockOrdersRepository();
+  ref.onDispose(repo.dispose);
+  return repo;
 });
 
 /// [CLIENTE] Id de la orden activa del usuario actual.
