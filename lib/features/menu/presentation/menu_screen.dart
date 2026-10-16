@@ -9,7 +9,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../branches/data/branch_repository.dart';
 import '../../branches/domain/branch.dart';
 import '../../cart/application/cart_controller.dart';
-import '../application/cafe_menu_controller.dart';
+import '../application/cafe_menu_repository.dart';
 import '../domain/product.dart';
 
 /// Categoría seleccionada en el filtro del menú. `null` = "Todos".
@@ -34,7 +34,8 @@ class CafeMenuScreen extends ConsumerWidget {
       );
     }
 
-    final products = ref.watch(cafeClientMenuProvider(cafe.id));
+    final productsAsync = ref.watch(cafeClientMenuProvider(cafe.id));
+    final products = productsAsync.valueOrNull ?? const <Product>[];
     final user = ref.watch(authControllerProvider);
     final cartCount = ref.watch(cartControllerProvider).fold<int>(
           0,
@@ -81,7 +82,12 @@ class CafeMenuScreen extends ConsumerWidget {
                 ref.read(_menuFilterProvider.notifier).state = c,
           ),
           const SizedBox(height: AppSpacing.lg),
-          if (visible.isEmpty)
+          if (productsAsync.isLoading && products.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (visible.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 40),
               child: Center(

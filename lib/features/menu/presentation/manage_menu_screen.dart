@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/money.dart';
 import '../../staff/application/shift_controller.dart';
-import '../application/cafe_menu_controller.dart';
+import '../application/cafe_menu_repository.dart';
 import '../domain/product.dart';
 
 /// Panel de la cafetería para administrar su menú: agregar, editar,
@@ -19,14 +19,7 @@ class ManageMenuScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cafeId = ref.watch(shiftControllerProvider)?.branchId ?? 'condesa';
-    final products = ref.watch(cafeMenuProvider(cafeId));
-    final categories = <String>[
-      ..._order.where((c) => products.any((p) => p.category == c)),
-      ...products
-          .map((p) => p.category)
-          .where((c) => !_order.contains(c))
-          .toSet(),
-    ];
+    final menuAsync = ref.watch(cafeMenuStreamProvider(cafeId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Menú de la cafetería')),
@@ -37,49 +30,68 @@ class ManageMenuScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Agregar'),
       ),
-      body: products.isEmpty
-          ? const _EmptyMenu()
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                AppSpacing.lg,
-                AppSpacing.screen,
-                96,
-              ),
-              children: [
-                for (final category in categories) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      top: AppSpacing.sm,
-                      bottom: AppSpacing.md,
-                    ),
-                    child: Text(
-                      category.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
-                        color: AppColors.muted,
-                      ),
+      body: menuAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Text('No se pudo cargar el menú: $e',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.muted)),
+          ),
+        ),
+        data: (products) {
+          if (products.isEmpty) return const _EmptyMenu();
+          final categories = <String>[
+            ..._order.where((c) => products.any((p) => p.category == c)),
+            ...products
+                .map((p) => p.category)
+                .where((c) => !_order.contains(c))
+                .toSet(),
+          ];
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              AppSpacing.lg,
+              AppSpacing.screen,
+              96,
+            ),
+            children: [
+              for (final category in categories) ...[
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.sm,
+                    bottom: AppSpacing.md,
+                  ),
+                  child: Text(
+                    category.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2,
+                      color: AppColors.muted,
                     ),
                   ),
-                  for (final product
-                      in products.where((p) => p.category == category)) ...[
-                    _ProductRow(
-                      product: product,
-                      onEdit: () => _openForm(context, ref, cafeId, product),
-                      onToggle: () => ref
-                          .read(cafeMenuControllerProvider.notifier)
-                          .toggleAvailable(cafeId, product.id),
-                      onDelete: () =>
-                          _confirmDelete(context, ref, cafeId, product),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                  const SizedBox(height: AppSpacing.md),
+                ),
+                for (final product
+                    in products.where((p) => p.category == category)) ...[
+                  _ProductRow(
+                    product: product,
+                    onEdit: () => _openForm(context, ref, cafeId, product),
+                    onToggle: () => ref
+                        .read(cafeMenuRepositoryProvider)
+                        .setAvailable(cafeId, product.id, !product.available),
+                    onDelete: () =>
+                        _confirmDelete(context, ref, cafeId, product),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
+                const SizedBox(height: AppSpacing.md),
               ],
-            ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -91,14 +103,8 @@ class ManageMenuScreen extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => _ProductForm(
         existing: existing,
-        onSave: (product) {
-          final notifier = ref.read(cafeMenuControllerProvider.notifier);
-          if (existing == null) {
-            notifier.add(cafeId, product);
-          } else {
-            notifier.update(cafeId, product);
-          }
-        },
+        onSave: (product) =>
+            ref.read(cafeMenuRepositoryProvider).upsert(cafeId, product),
       ),
     );
   }
@@ -124,7 +130,7 @@ class ManageMenuScreen extends ConsumerWidget {
       ),
     );
     if (ok == true) {
-      ref.read(cafeMenuControllerProvider.notifier).remove(cafeId, product.id);
+      ref.read(cafeMenuRepositoryProvider).remove(cafeId, product.id);
     }
   }
 }
