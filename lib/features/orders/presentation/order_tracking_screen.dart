@@ -93,7 +93,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Pedido ${order.id} · $itemsSummary',
+            itemsSummary,
             style: const TextStyle(color: AppColors.muted, fontSize: 13),
           ),
           const SizedBox(height: AppSpacing.xl),

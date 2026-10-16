@@ -340,10 +340,11 @@ class _OrderCard extends ConsumerWidget {
                       child: Row(
                         children: [
                           Text(
-                            order.id,
+                            order.pickupCode,
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
-                              fontSize: 15,
+                              fontSize: 16,
+                              letterSpacing: 1,
                             ),
                           ),
                           if (urgent) ...[
