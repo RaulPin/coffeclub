@@ -24,7 +24,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final result = await ref.read(paymentServiceProvider).startSubscription();
     if (!mounted) return;
     if (result.success) {
-      ref.read(authControllerProvider.notifier).markAsSubscriber();
+      await ref.read(authControllerProvider.notifier).markAsSubscriber();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('¡Bienvenido a Barra+!')),
       );

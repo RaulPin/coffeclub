@@ -13,7 +13,7 @@ Future<void> main() async {
 
   // Inicializa Firebase si usamos datos reales (cafés/menús/pedidos) o backend
   // completo. Requiere lib/firebase_options.dart (flutterfire configure).
-  if (AppConfig.dataFromFirestore) {
+  if (AppConfig.usesFirebase) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );

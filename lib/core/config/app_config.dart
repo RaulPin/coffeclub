@@ -13,8 +13,15 @@ class AppConfig {
   /// los pagos sigan en modo demo. Permite migrar a la base real por partes.
   static const bool useFirestoreData = true;
 
+  /// Usar Firebase Auth real (correo/contraseña) para los clientes.
+  static const bool useFirebaseAuth = true;
+
   /// `true` si los datos deben leerse/escribirse en Firestore.
   static bool get dataFromFirestore => !useMockBackend || useFirestoreData;
+
+  /// `true` si se requiere inicializar Firebase (datos o auth reales).
+  static bool get usesFirebase =>
+      dataFromFirestore || useFirebaseAuth || !useMockBackend;
 
   /// Nombre comercial.
   static const String appName = 'Barra';

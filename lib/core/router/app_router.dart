@@ -21,8 +21,14 @@ import '../../features/subscription/presentation/subscription_screen.dart';
 import 'client_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
+  // Reevalúa las redirecciones cuando cambia la sesión del cliente.
+  final authRefresh = ValueNotifier<int>(0);
+  ref.listen(authControllerProvider, (_, __) => authRefresh.value++);
+  ref.onDispose(authRefresh.dispose);
+
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: authRefresh,
     redirect: (context, state) {
       final location = state.matchedLocation;
 

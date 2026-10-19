@@ -1,42 +1,71 @@
+import 'dart:async';
+
 import '../domain/app_user.dart';
 
-/// Métodos de inicio de sesión social soportados.
-enum SocialProvider { google, apple, facebook }
-
-/// Contrato de autenticación. La app usa esta interfaz; la implementación
-/// concreta (mock o Firebase) se inyecta vía Riverpod en `auth_controller.dart`.
+/// Contrato de autenticación de clientes (correo y contraseña). La app usa
+/// esta interfaz; la implementación (mock o Firebase) se inyecta vía Riverpod.
 abstract interface class AuthRepository {
-  /// Usuario actual (null si no hay sesión).
-  AppUser? get currentUser;
+  /// Usuario actual de forma síncrona (null si no hay sesión). Disponible al
+  /// arrancar para que el router decida la pantalla inicial.
+  AppUser? currentUser();
 
-  /// Inicia sesión con un proveedor social.
-  Future<AppUser> signInWith(SocialProvider provider);
+  /// Cambios de sesión (login/logout) con el perfil ya cargado.
+  Stream<AppUser?> authState();
+
+  /// Inicia sesión con correo y contraseña.
+  Future<AppUser> signIn(String email, String password);
+
+  /// Crea una cuenta nueva y su perfil.
+  Future<AppUser> register(String name, String email, String password);
 
   /// Cierra la sesión.
   Future<void> signOut();
+
+  /// Marca al usuario como socio Barra+.
+  Future<void> markSubscriber(String userId);
 }
 
 /// Implementación de ejemplo para desarrollo sin backend.
 class MockAuthRepository implements AuthRepository {
   AppUser? _user;
+  final StreamController<AppUser?> _ctrl =
+      StreamController<AppUser?>.broadcast();
 
   @override
-  AppUser? get currentUser => _user;
+  AppUser? currentUser() => _user;
 
   @override
-  Future<AppUser> signInWith(SocialProvider provider) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    _user = const AppUser(
+  Stream<AppUser?> authState() => _ctrl.stream;
+
+  @override
+  Future<AppUser> signIn(String email, String password) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    _user = AppUser(
       id: 'demo-user',
-      name: 'Socio Demo',
-      email: 'socio@barra.mx',
-      isSubscriber: false,
+      name: email.split('@').first,
+      email: email,
     );
+    _ctrl.add(_user);
+    return _user!;
+  }
+
+  @override
+  Future<AppUser> register(String name, String email, String password) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    _user = AppUser(id: 'demo-user', name: name, email: email);
+    _ctrl.add(_user);
     return _user!;
   }
 
   @override
   Future<void> signOut() async {
     _user = null;
+    _ctrl.add(null);
+  }
+
+  @override
+  Future<void> markSubscriber(String userId) async {
+    _user = _user?.copyWith(isSubscriber: true);
+    _ctrl.add(_user);
   }
 }

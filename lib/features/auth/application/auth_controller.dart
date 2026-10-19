@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
@@ -7,23 +9,26 @@ import '../domain/app_user.dart';
 
 /// Provee la implementación de `AuthRepository` según el modo.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  if (AppConfig.useMockBackend) return MockAuthRepository();
-  return FirebaseAuthRepository();
+  if (AppConfig.useFirebaseAuth) return FirebaseAuthRepository();
+  return MockAuthRepository();
 });
 
-/// Estado de la sesión: null = no autenticado.
+/// Estado de la sesión del cliente: null = no autenticado.
 class AuthController extends StateNotifier<AppUser?> {
-  AuthController(this._repository) : super(_repository.currentUser);
+  AuthController(this._repository) : super(_repository.currentUser()) {
+    // Mantiene el estado sincronizado con la sesión (login/logout, perfil).
+    _sub = _repository.authState().listen((user) => state = user);
+  }
 
   final AuthRepository _repository;
+  late final StreamSubscription<AppUser?> _sub;
 
-  bool _loading = false;
-  bool get isLoading => _loading;
+  Future<void> signIn(String email, String password) async {
+    state = await _repository.signIn(email, password);
+  }
 
-  Future<void> signIn(SocialProvider provider) async {
-    _loading = true;
-    state = await _repository.signInWith(provider);
-    _loading = false;
+  Future<void> register(String name, String email, String password) async {
+    state = await _repository.register(name, email, password);
   }
 
   Future<void> signOut() async {
@@ -31,10 +36,18 @@ class AuthController extends StateNotifier<AppUser?> {
     state = null;
   }
 
-  /// Marca al usuario como socio tras comprar la suscripción.
-  void markAsSubscriber() {
+  /// Marca al usuario como socio Barra+ tras contratar la membresía.
+  Future<void> markAsSubscriber() async {
     final user = state;
-    if (user != null) state = user.copyWith(isSubscriber: true);
+    if (user == null) return;
+    await _repository.markSubscriber(user.id);
+    state = user.copyWith(isSubscriber: true);
+  }
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
   }
 }
 

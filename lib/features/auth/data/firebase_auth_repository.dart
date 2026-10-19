@@ -1,112 +1,95 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../domain/app_user.dart';
 import 'auth_repository.dart';
 
-/// Autenticación real con Firebase Auth + proveedores sociales.
-/// El estado de socio (`isSubscriber`) se lee del documento `users/{uid}`.
+/// Autenticación real con Firebase Auth (correo y contraseña).
+/// El perfil (nombre, estado de socio) vive en `users/{uid}` de Firestore.
 class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  @override
-  AppUser? get currentUser {
-    final user = _auth.currentUser;
-    return user == null ? null : _mapBasic(user);
-  }
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _db.collection('users');
 
   @override
-  Future<AppUser> signInWith(SocialProvider provider) async {
-    final credential = switch (provider) {
-      SocialProvider.google => await _googleCredential(),
-      SocialProvider.apple => await _appleCredential(),
-      SocialProvider.facebook => await _facebookCredential(),
-    };
-
-    final result = await _auth.signInWithCredential(credential);
-    final user = result.user!;
-    await _ensureUserDoc(user);
-    return _mapWithSubscription(user);
-  }
-
-  @override
-  Future<void> signOut() async {
-    await Future.wait([
-      _auth.signOut(),
-      GoogleSignIn().signOut(),
-      FacebookAuth.instance.logOut(),
-    ]);
-  }
-
-  // --- Proveedores sociales ---
-
-  Future<OAuthCredential> _googleCredential() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) throw Exception('Inicio con Google cancelado');
-    final googleAuth = await googleUser.authentication;
-    return GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
+  AppUser? currentUser() {
+    final u = _auth.currentUser;
+    if (u == null) return null;
+    return AppUser(
+      id: u.uid,
+      name: u.displayName ?? (u.email?.split('@').first ?? ''),
+      email: u.email ?? '',
+      photoUrl: u.photoURL,
     );
   }
 
-  Future<OAuthCredential> _appleCredential() async {
-    final apple = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
+  @override
+  Stream<AppUser?> authState() =>
+      _auth.authStateChanges().asyncMap((u) async {
+        if (u == null) return null;
+        return _loadProfile(u);
+      });
+
+  @override
+  Future<AppUser> signIn(String email, String password) async {
+    final cred = await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
     );
-    return OAuthProvider('apple.com').credential(
-      idToken: apple.identityToken,
-      accessToken: apple.authorizationCode,
+    return _loadProfile(cred.user!);
+  }
+
+  @override
+  Future<AppUser> register(String name, String email, String password) async {
+    final cred = await _auth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    final user = cred.user!;
+    await user.updateDisplayName(name.trim());
+    await _users.doc(user.uid).set({
+      'name': name.trim(),
+      'email': email.trim(),
+      'isSubscriber': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return AppUser(
+      id: user.uid,
+      name: name.trim(),
+      email: email.trim(),
     );
   }
 
-  Future<OAuthCredential> _facebookCredential() async {
-    final result = await FacebookAuth.instance.login();
-    if (result.status != LoginStatus.success || result.accessToken == null) {
-      throw Exception('Inicio con Facebook cancelado');
-    }
-    return FacebookAuthProvider.credential(result.accessToken!.tokenString);
-  }
+  @override
+  Future<void> signOut() => _auth.signOut();
 
-  // --- Firestore users/{uid} ---
+  @override
+  Future<void> markSubscriber(String userId) =>
+      _users.doc(userId).set({'isSubscriber': true}, SetOptions(merge: true));
 
-  Future<void> _ensureUserDoc(User user) async {
-    final ref = _db.collection('users').doc(user.uid);
+  /// Carga el perfil de Firestore (crea el doc si falta, p. ej. cuentas viejas).
+  Future<AppUser> _loadProfile(User user) async {
+    final ref = _users.doc(user.uid);
     final snap = await ref.get();
     if (!snap.exists) {
       await ref.set({
         'name': user.displayName ?? '',
         'email': user.email ?? '',
-        'photoUrl': user.photoURL,
         'isSubscriber': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
-  }
-
-  AppUser _mapBasic(User user) => AppUser(
-        id: user.uid,
-        name: user.displayName ?? '',
-        email: user.email ?? '',
-        photoUrl: user.photoURL,
-      );
-
-  Future<AppUser> _mapWithSubscription(User user) async {
-    final snap = await _db.collection('users').doc(user.uid).get();
-    final isSubscriber = (snap.data()?['isSubscriber'] as bool?) ?? false;
+    final data = snap.data() ?? const {};
     return AppUser(
       id: user.uid,
-      name: user.displayName ?? snap.data()?['name'] as String? ?? '',
-      email: user.email ?? '',
+      name: user.displayName ??
+          (data['name'] as String?) ??
+          (user.email?.split('@').first ?? ''),
+      email: user.email ?? (data['email'] as String? ?? ''),
       photoUrl: user.photoURL,
-      isSubscriber: isSubscriber,
+      isSubscriber: (data['isSubscriber'] as bool?) ?? false,
     );
   }
 }
