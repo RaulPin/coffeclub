@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -281,19 +283,58 @@ class _OrDivider extends StatelessWidget {
   }
 }
 
-/// Logo "G" de Google en los cuatro colores de la marca.
+/// Logo "G" oficial de Google, dibujado vectorialmente (sin assets).
 class _GoogleG extends StatelessWidget {
   const _GoogleG();
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      'G',
-      style: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-        color: Color(0xFF4285F4),
-      ),
+    return const SizedBox(
+      width: 18,
+      height: 18,
+      child: CustomPaint(painter: _GoogleGPainter()),
     );
   }
+}
+
+class _GoogleGPainter extends CustomPainter {
+  const _GoogleGPainter();
+
+  static const _blue = Color(0xFF4285F4);
+  static const _red = Color(0xFFEA4335);
+  static const _yellow = Color(0xFFFBBC05);
+  static const _green = Color(0xFF34A853);
+
+  static double _rad(double deg) => deg * math.pi / 180;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+    final t = size.width * 0.26; // grosor del anillo
+    final rm = r - t / 2; // radio medio del trazo
+    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: rm);
+
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = t
+      ..strokeCap = StrokeCap.butt;
+
+    // Cuatro arcos de 90°: rojo arriba, azul derecha, verde abajo, amarillo izq.
+    canvas.drawArc(rect, _rad(225), _rad(90), false, arc..color = _red);
+    canvas.drawArc(rect, _rad(315), _rad(90), false, arc..color = _blue);
+    canvas.drawArc(rect, _rad(45), _rad(90), false, arc..color = _green);
+    canvas.drawArc(rect, _rad(135), _rad(90), false, arc..color = _yellow);
+
+    // Barra horizontal azul de la "G" (del centro al borde derecho).
+    final bar = Paint()..color = _blue;
+    canvas.drawRect(
+      Rect.fromLTRB(cx, cy - t / 2, cx + r, cy + t / 2),
+      bar,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GoogleGPainter oldDelegate) => false;
 }
