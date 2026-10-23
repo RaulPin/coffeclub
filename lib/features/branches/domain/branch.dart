@@ -9,11 +9,21 @@ class Branch {
     this.etaMinutes = 5,
     this.rating = 4.8,
     this.lockerCount = 12,
+    this.lat,
+    this.lng,
   });
 
   final String id;
   final String name;
   final String address;
+
+  /// Coordenadas de la cafetería para mostrarla en el mapa.
+  /// Si faltan, la cafetería no se dibuja como pin.
+  final double? lat;
+  final double? lng;
+
+  /// true si la cafetería tiene coordenadas válidas para el mapa.
+  bool get hasLocation => lat != null && lng != null;
 
   /// Frase corta de la cafetería (p. ej. "Café de especialidad · Condesa").
   final String tagline;

@@ -13,6 +13,8 @@ const kDemoBranches = <Branch>[
     tagline: 'Café de especialidad · tostado propio',
     etaMinutes: 4,
     rating: 4.9,
+    lat: 19.4115,
+    lng: -99.1730,
     imageUrl:
         'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&h=400&fit=crop',
   ),
@@ -23,6 +25,8 @@ const kDemoBranches = <Branch>[
     tagline: 'Brunch y métodos de filtrado',
     etaMinutes: 6,
     rating: 4.7,
+    lat: 19.4185,
+    lng: -99.1605,
     imageUrl:
         'https://images.unsplash.com/photo-1445116572660-236099ec97a0?w=600&h=400&fit=crop',
   ),
@@ -33,6 +37,8 @@ const kDemoBranches = <Branch>[
     tagline: 'Espresso bar & pastelería',
     etaMinutes: 5,
     rating: 4.8,
+    lat: 19.4328,
+    lng: -99.1980,
     imageUrl:
         'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&h=400&fit=crop',
   ),
@@ -68,6 +74,8 @@ class FirestoreBranchRepository implements BranchRepository {
         imageUrl: data['imageUrl'] as String?,
         etaMinutes: (data['etaMinutes'] as num?)?.toInt() ?? 5,
         rating: (data['rating'] as num?)?.toDouble() ?? 4.8,
+        lat: (data['lat'] as num?)?.toDouble(),
+        lng: (data['lng'] as num?)?.toDouble(),
       );
     }).toList();
   }

@@ -14,6 +14,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
 
+  # Mapa (OpenStreetMap, sin API key)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
   # State management
   flutter_riverpod: ^2.5.1
 

@@ -7,14 +7,27 @@ import '../../../core/theme/app_spacing.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../branches/data/branch_repository.dart';
 import '../../branches/domain/branch.dart';
+import 'cafe_map.dart';
 
 /// Descubrimiento: lista de cafeterías del marketplace. El cliente elige una
-/// y entra a su menú.
-class DiscoveryScreen extends ConsumerWidget {
+/// y entra a su menú. Puede alternar entre vista de lista y mapa.
+class DiscoveryScreen extends ConsumerStatefulWidget {
   const DiscoveryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DiscoveryScreen> createState() => _DiscoveryScreenState();
+}
+
+class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
+  bool _mapView = false;
+
+  void _openCafe(Branch cafe) {
+    ref.read(selectedBranchIdProvider.notifier).state = cafe.id;
+    context.push('/cafe');
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final branchesAsync = ref.watch(branchesProvider);
     final user = ref.watch(authControllerProvider);
     final firstName = (user?.name ?? '').split(' ').first;
@@ -26,49 +39,136 @@ class DiscoveryScreen extends ConsumerWidget {
         error: (e, _) => Center(
           child: Text('No pudimos cargar las cafeterías: $e'),
         ),
-        data: (branches) => ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screen,
-            AppSpacing.lg,
-            AppSpacing.screen,
-            AppSpacing.xxl,
-          ),
+        data: (branches) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              firstName.isEmpty ? 'Hola 👋' : 'Hola, $firstName 👋',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screen,
+                AppSpacing.lg,
+                AppSpacing.screen,
+                0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    firstName.isEmpty ? 'Hola 👋' : 'Hola, $firstName 👋',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    '¿Dónde quieres tu café hoy?',
+                    style: TextStyle(color: AppColors.muted, fontSize: 14),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _ViewToggle(
+                    mapView: _mapView,
+                    onChanged: (v) => setState(() => _mapView = v),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
               ),
             ),
-            const SizedBox(height: 2),
-            const Text(
-              '¿Dónde quieres tu café hoy?',
-              style: TextStyle(color: AppColors.muted, fontSize: 14),
+            Expanded(
+              child: _mapView
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screen,
+                        0,
+                        AppSpacing.screen,
+                        AppSpacing.lg,
+                      ),
+                      child: CafeMap(branches: branches, onOpen: _openCafe),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screen,
+                        0,
+                        AppSpacing.screen,
+                        AppSpacing.xxl,
+                      ),
+                      children: [
+                        const Text(
+                          'CAFETERÍAS CERCA',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        for (final cafe in branches) ...[
+                          _CafeCard(cafe: cafe, onTap: () => _openCafe(cafe)),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                      ],
+                    ),
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'CAFETERÍAS CERCA',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2,
-                color: AppColors.muted,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            for (final cafe in branches) ...[
-              _CafeCard(
-                cafe: cafe,
-                onTap: () {
-                  ref.read(selectedBranchIdProvider.notifier).state = cafe.id;
-                  context.push('/cafe');
-                },
-              ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Interruptor segmentado Lista / Mapa.
+class _ViewToggle extends StatelessWidget {
+  const _ViewToggle({required this.mapView, required this.onChanged});
+  final bool mapView;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.paper,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Row(
+        children: [
+          _segment('Lista', Icons.view_list_rounded, !mapView, () => onChanged(false)),
+          _segment('Mapa', Icons.map_outlined, mapView, () => onChanged(true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(String label, IconData icon, bool active, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? AppColors.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.button - 2),
+            boxShadow: active ? AppColors.cardShadow : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 16, color: active ? AppColors.ink : AppColors.muted),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: active ? AppColors.ink : AppColors.muted,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

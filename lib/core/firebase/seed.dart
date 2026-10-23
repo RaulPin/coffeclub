@@ -25,6 +25,8 @@ Future<void> seedFirestoreIfEmpty() async {
       'imageUrl': cafe.imageUrl,
       'etaMinutes': cafe.etaMinutes,
       'rating': cafe.rating,
+      'lat': cafe.lat,
+      'lng': cafe.lng,
     });
     for (final p in kDemoMenu) {
       batch.set(cafes.doc(cafe.id).collection('products').doc(p.id), {
