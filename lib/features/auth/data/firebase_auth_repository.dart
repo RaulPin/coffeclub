@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../domain/app_user.dart';
 import 'auth_repository.dart';
@@ -63,7 +65,38 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<AppUser> signInWithGoogle() async {
+    final UserCredential cred;
+    if (kIsWeb) {
+      // En web, Firebase abre un popup de Google directamente.
+      cred = await _auth.signInWithPopup(GoogleAuthProvider());
+    } else {
+      // En móvil, el plugin nativo obtiene las credenciales de Google.
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        throw FirebaseAuthException(
+          code: 'canceled',
+          message: 'Inicio de sesión cancelado.',
+        );
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      cred = await _auth.signInWithCredential(credential);
+    }
+    return _loadProfile(cred.user!);
+  }
+
+  @override
+  Future<void> signOut() async {
+    if (!kIsWeb) {
+      // Cierra también la sesión del plugin de Google en móvil.
+      await GoogleSignIn().signOut();
+    }
+    await _auth.signOut();
+  }
 
   @override
   Future<void> markSubscriber(String userId) =>

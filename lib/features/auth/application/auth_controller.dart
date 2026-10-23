@@ -31,6 +31,10 @@ class AuthController extends StateNotifier<AppUser?> {
     state = await _repository.register(name, email, password);
   }
 
+  Future<void> signInWithGoogle() async {
+    state = await _repository.signInWithGoogle();
+  }
+
   Future<void> signOut() async {
     await _repository.signOut();
     state = null;

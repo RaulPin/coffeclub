@@ -18,6 +18,9 @@ abstract interface class AuthRepository {
   /// Crea una cuenta nueva y su perfil.
   Future<AppUser> register(String name, String email, String password);
 
+  /// Inicia sesión con Google. Lanza si el usuario cancela el flujo.
+  Future<AppUser> signInWithGoogle();
+
   /// Cierra la sesión.
   Future<void> signOut();
 
@@ -53,6 +56,18 @@ class MockAuthRepository implements AuthRepository {
   Future<AppUser> register(String name, String email, String password) async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
     _user = AppUser(id: 'demo-user', name: name, email: email);
+    _ctrl.add(_user);
+    return _user!;
+  }
+
+  @override
+  Future<AppUser> signInWithGoogle() async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    _user = const AppUser(
+      id: 'demo-google',
+      name: 'Usuario Google',
+      email: 'demo@gmail.com',
+    );
     _ctrl.add(_user);
     return _user!;
   }

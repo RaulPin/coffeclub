@@ -73,6 +73,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _googleSignIn() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      if (mounted) context.go('/cafes');
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'canceled' || e.code == 'popup-closed-by-user') {
+        setState(() => _loading = false);
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = _message(e.code);
+      });
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _error = 'No pudimos continuar con Google. Inténtalo de nuevo.';
+      });
+    }
+  }
+
   String _message(String code) => switch (code) {
         'invalid-email' => 'El correo no es válido.',
         'user-not-found' ||
@@ -157,6 +182,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : Text(_register ? 'Crear cuenta' : 'Iniciar sesión'),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                const _OrDivider(),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  height: AppRadius.buttonHeight,
+                  child: OutlinedButton.icon(
+                    onPressed: _loading ? null : _googleSignIn,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.ink,
+                      side: const BorderSide(color: Color(0xFFE2DED7)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppRadius.button),
+                      ),
+                    ),
+                    icon: const _GoogleG(),
+                    label: const Text(
+                      'Continuar con Google',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 TextButton(
                   onPressed: _loading
@@ -204,6 +251,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           onSubmit != null ? TextInputAction.done : TextInputAction.next,
       onSubmitted: onSubmit == null ? null : (_) => onSubmit(),
       decoration: InputDecoration(hintText: label),
+    );
+  }
+}
+
+/// Separador "──── o ────" entre el correo y el acceso con Google.
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: Color(0xFFE2DED7))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Text(
+            'o',
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: Color(0xFFE2DED7))),
+      ],
+    );
+  }
+}
+
+/// Logo "G" de Google en los cuatro colores de la marca.
+class _GoogleG extends StatelessWidget {
+  const _GoogleG();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'G',
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+        color: Color(0xFF4285F4),
+      ),
     );
   }
 }
