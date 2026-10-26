@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/cafe_registration/presentation/cafe_registration_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/discovery/presentation/discovery_screen.dart';
@@ -109,6 +110,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/staff/menu',
         builder: (_, __) => const ManageMenuScreen(),
+      ),
+      GoRoute(
+        path: '/staff/register',
+        builder: (_, __) => const CafeRegistrationScreen(),
       ),
       GoRoute(
         path: '/staff/branch/:id',

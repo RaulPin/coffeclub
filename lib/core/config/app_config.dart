@@ -16,12 +16,19 @@ class AppConfig {
   /// Usar Firebase Auth real (correo/contraseña) para los clientes.
   static const bool useFirebaseAuth = true;
 
+  /// Usar Firebase Auth real para el personal/cafeterías (estación de tienda).
+  /// Con esto, las cafeterías se registran solas y entran con su cuenta real.
+  static const bool useFirebaseStaffAuth = true;
+
   /// `true` si los datos deben leerse/escribirse en Firestore.
   static bool get dataFromFirestore => !useMockBackend || useFirestoreData;
 
   /// `true` si se requiere inicializar Firebase (datos o auth reales).
   static bool get usesFirebase =>
-      dataFromFirestore || useFirebaseAuth || !useMockBackend;
+      dataFromFirestore ||
+      useFirebaseAuth ||
+      useFirebaseStaffAuth ||
+      !useMockBackend;
 
   /// Nombre comercial.
   static const String appName = 'Barra';

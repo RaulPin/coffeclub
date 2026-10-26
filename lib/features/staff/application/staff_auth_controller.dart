@@ -6,8 +6,8 @@ import '../data/staff_auth_repository.dart';
 import '../domain/staff_user.dart';
 
 final staffAuthRepositoryProvider = Provider<StaffAuthRepository>((ref) {
-  if (AppConfig.useMockBackend) return MockStaffAuthRepository();
-  return FirebaseStaffAuthRepository();
+  if (AppConfig.useFirebaseStaffAuth) return FirebaseStaffAuthRepository();
+  return MockStaffAuthRepository();
 });
 
 /// Sesión del personal (empleado o admin). null = no autenticado.
@@ -21,6 +21,9 @@ class StaffAuthController extends StateNotifier<StaffUser?> {
     state = user;
     return user;
   }
+
+  /// Fija la sesión tras registrar una cafetería (ya quedó autenticada).
+  void applySession(StaffUser user) => state = user;
 
   Future<void> signOut() async {
     await _repository.signOut();
