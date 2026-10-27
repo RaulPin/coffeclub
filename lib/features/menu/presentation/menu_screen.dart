@@ -289,7 +289,7 @@ class _SubscriptionBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     const Text(
-                      'Sin cuota de servicio',
+                      'Cuota de servicio reducida',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,

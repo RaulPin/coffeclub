@@ -244,7 +244,7 @@ class _SummaryBar extends StatelessWidget {
             if (pricing.isMember)
               _Line(
                 label: 'Cuota de servicio · Barra+',
-                value: 'Incluida',
+                value: formatMxn(pricing.serviceFeeCents),
                 muted: true,
                 valueColor: AppColors.success,
                 valueBold: true,

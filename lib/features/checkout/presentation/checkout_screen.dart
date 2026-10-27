@@ -125,7 +125,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 if (pricing.isMember)
                   _Line(
                     label: 'Cuota de servicio · Barra+',
-                    value: 'Incluida',
+                    value: formatMxn(pricing.serviceFeeCents),
                     color: AppColors.success,
                   )
                 else

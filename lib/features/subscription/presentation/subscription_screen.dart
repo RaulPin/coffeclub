@@ -154,7 +154,7 @@ class _ClubCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Sin cuota de servicio en todos tus pedidos, '
+                    'Cuota de servicio reducida en todos tus pedidos, '
                     'en cualquier cafetería.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
@@ -227,7 +227,7 @@ class _BenefitsGrid extends StatelessWidget {
   const _BenefitsGrid();
 
   static const _benefits = [
-    (Icons.payments_outlined, 'Sin cuota de servicio', 'Ahorras \$10 por pedido'),
+    (Icons.payments_outlined, 'Cuota reducida', 'Pagas \$5 en vez de \$10'),
     (Icons.storefront_outlined, 'En todos los cafés', 'Aplica en toda Barra'),
     (Icons.bolt_outlined, 'Sin fila', 'Pide antes y recoge en barra'),
     (Icons.event_repeat_outlined, 'Sin permanencia', 'Cancela cuando quieras'),

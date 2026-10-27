@@ -46,18 +46,36 @@ class AppConfig {
       .map((e) => e.toLowerCase())
       .contains(email.trim().toLowerCase());
 
-  // --- Modelo de negocio ---
+  // --- Modelo de negocio (parámetros ajustables) ---
 
   /// Comisión que Barra cobra a la cafetería por pedido (sobre el subtotal
-  /// de productos). 0.05 = 5%.
-  static const double platformCommissionRate = 0.05;
+  /// de productos). 0.08 = 8%.
+  static const double platformCommissionRate = 0.08;
 
-  /// Cuota de servicio fija que paga el cliente por pedido (centavos de MXN).
+  /// Cuota de servicio fija que paga un cliente NO socio por pedido (centavos).
   static const int serviceFeeCents = 1000; // $10.00
 
+  /// Cuota de servicio para socios Barra+ (reducida, no $0). Cubre el costo
+  /// fijo de procesamiento de pago para que cada pedido de socio no pierda.
+  static const int memberServiceFeeCents = 500; // $5.00
+
   /// Precio de la membresía "Barra+" (centavos de MXN / mes).
-  /// Beneficio: se elimina la cuota de servicio en todos los pedidos.
+  /// Beneficio: cuota de servicio reducida en todos los pedidos.
   static const int membershipMonthlyCents = 2900; // $29.00
+
+  // --- Costo de procesamiento de pago (Mercado Pago) ---
+  // Para modelar el margen real de Barra. Mercado Pago cobra un porcentaje
+  // por transacción MÁS un cargo fijo por operación.
+
+  /// Porcentaje que cobra Mercado Pago sobre el monto cobrado. 0.0349 = 3.49%.
+  static const double paymentPercentRate = 0.0349;
+
+  /// Cargo fijo por transacción de Mercado Pago (centavos de MXN).
+  static const int paymentFixedFeeCents = 400; // $4.00
+
+  /// Costo estimado de procesar un cobro de [amountCents] con Mercado Pago.
+  static int paymentProcessingCost(int amountCents) =>
+      (amountCents * paymentPercentRate).round() + paymentFixedFeeCents;
 
   // --- Stripe (rellenar al integrar pagos) ---
   static const String stripePublishableKey = 'pk_test_TODO';
