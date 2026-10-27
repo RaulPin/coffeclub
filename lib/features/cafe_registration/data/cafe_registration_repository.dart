@@ -12,6 +12,7 @@ class CafeRegistration {
     required this.ownerName,
     required this.email,
     required this.password,
+    this.imageUrl = '',
     this.lat,
     this.lng,
   });
@@ -22,6 +23,9 @@ class CafeRegistration {
   final String ownerName;
   final String email;
   final String password;
+
+  /// URL de la foto/logo de la cafetería (opcional).
+  final String imageUrl;
 
   /// Ubicación elegida en el mapa (opcional). Si falta, el café no se dibuja
   /// como pin pero sí aparece en la lista.
@@ -61,7 +65,7 @@ class FirebaseCafeRegistrationRepository implements CafeRegistrationRepository {
       'name': data.cafeName.trim(),
       'address': data.address.trim(),
       'tagline': data.tagline.trim(),
-      'imageUrl': null,
+      'imageUrl': data.imageUrl.trim().isEmpty ? null : data.imageUrl.trim(),
       'etaMinutes': 5,
       'rating': 5.0,
       'lat': data.lat,

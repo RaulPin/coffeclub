@@ -16,6 +16,7 @@ import '../../staff/domain/staff_user.dart';
 import '../application/cafe_registration_controller.dart';
 import '../data/cafe_registration_repository.dart';
 import '../data/geocoding_service.dart';
+import 'photo_url_field.dart';
 
 /// Alta self-service de una cafetería en Barra: datos del negocio, ubicación
 /// en el mapa y cuenta de acceso del dueño.
@@ -35,6 +36,7 @@ class _CafeRegistrationScreenState
   final _ownerName = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _imageUrl = TextEditingController();
 
   final _mapController = MapController();
 
@@ -60,6 +62,7 @@ class _CafeRegistrationScreenState
     _ownerName.dispose();
     _email.dispose();
     _password.dispose();
+    _imageUrl.dispose();
     super.dispose();
   }
 
@@ -132,6 +135,7 @@ class _CafeRegistrationScreenState
         ownerName: _ownerName.text,
         email: _email.text,
         password: _password.text,
+        imageUrl: _imageUrl.text,
         lat: _location?.latitude,
         lng: _location?.longitude,
       );
@@ -215,6 +219,8 @@ class _CafeRegistrationScreenState
           ],
           const SizedBox(height: AppSpacing.md),
           _field(_tagline, 'Descripción corta (opcional)', TextInputType.text),
+          const SizedBox(height: AppSpacing.md),
+          PhotoUrlField(controller: _imageUrl),
           const SizedBox(height: AppSpacing.xl),
 
           _label('UBICACIÓN EN EL MAPA'),

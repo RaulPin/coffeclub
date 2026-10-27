@@ -68,6 +68,11 @@ class StaffDashboardScreen extends ConsumerWidget {
         title: Text(branchName == null ? 'Pedidos' : 'Sucursal $branchName'),
         actions: [
           IconButton(
+            tooltip: 'Editar cafetería',
+            onPressed: () => context.push('/staff/cafe'),
+            icon: const Icon(Icons.storefront_outlined),
+          ),
+          IconButton(
             tooltip: 'Menú de la cafetería',
             onPressed: () => context.push('/staff/menu'),
             icon: const Icon(Icons.restaurant_menu),
