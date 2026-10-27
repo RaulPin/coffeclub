@@ -11,6 +11,7 @@ class Branch {
     this.lockerCount = 12,
     this.lat,
     this.lng,
+    this.mpConnected = false,
   });
 
   final String id;
@@ -24,6 +25,9 @@ class Branch {
 
   /// true si la cafetería tiene coordenadas válidas para el mapa.
   bool get hasLocation => lat != null && lng != null;
+
+  /// true si la cafetería ya conectó su cuenta de Mercado Pago (puede cobrar).
+  final bool mpConnected;
 
   /// Frase corta de la cafetería (p. ej. "Café de especialidad · Condesa").
   final String tagline;

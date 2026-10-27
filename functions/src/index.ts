@@ -1,37 +1,40 @@
 /**
- * Cloud Functions de The Club Coffe.
+ * Cloud Functions de Barra — Pagos con Mercado Pago (modelo marketplace/split).
  *
- * Responsabilidades del servidor (fuente de verdad):
- *  - Recalcular montos y validar el beneficio de socio (1 Americano/día).
- *  - Crear PaymentIntents y suscripciones de Stripe (secret key solo aquí).
- *  - Confirmar pagos vía webhook y registrar la orden como pagada.
- *  - Asignar/abrir casilleros de forma transaccional (sin exponer hardware).
- *  - Cerrar turnos (cierre de caja) calculando totales.
+ * Responsabilidades del servidor (fuente de verdad, nunca el cliente):
+ *  - Conexión de cada cafetería con su cuenta de Mercado Pago (OAuth).
+ *  - Crear el cobro de un pedido reteniendo la comisión de Barra
+ *    (`marketplace_fee`): MP divide el dinero en automático.
+ *  - Confirmar el pago vía webhook y marcar el pedido como pagado; recién
+ *    entonces la cafetería lo ve en su cola.
+ *
+ * La llave secreta de Mercado Pago vive SOLO aquí (secretos de Firebase).
  */
-import {onCall, onRequest, HttpsError, CallableRequest} from "firebase-functions/v2/https";
+import {onCall, onRequest, HttpsError, CallableRequest} from
+  "firebase-functions/v2/https";
 import {defineSecret, defineString} from "firebase-functions/params";
 import * as admin from "firebase-admin";
-import Stripe from "stripe";
 
 admin.initializeApp();
 
-const stripeSecret = defineSecret("STRIPE_SECRET_KEY");
-const webhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
-const subscriptionPrice = defineString("STRIPE_SUBSCRIPTION_PRICE");
+// --- Credenciales de la aplicación de Mercado Pago (de tu panel de MP) ---
+const MP_CLIENT_ID = defineString("MP_CLIENT_ID");
+const MP_CLIENT_SECRET = defineSecret("MP_CLIENT_SECRET");
+/** Access token de la app marketplace (para consultar pagos en el webhook). */
+const MP_ACCESS_TOKEN = defineSecret("MP_ACCESS_TOKEN");
+/** URL pública de la función mpOAuthCallback (redirect_uri registrada en MP). */
+const MP_REDIRECT_URI = defineString("MP_REDIRECT_URI");
+/** A dónde regresa el usuario tras conectar o pagar (web o deep link). */
+const APP_RETURN_URL = defineString("APP_RETURN_URL");
 
-/** Precio del Americano para socios: $1.00. */
-const SOCIO_PRICE_CENTS = 100;
+// --- Modelo de negocio (fuente de verdad en el servidor) ---
+const COMMISSION_RATE = 0.08; // 8% al café
+const SERVICE_FEE_CENTS = 1000; // $10 no socio
+const MEMBER_FEE_CENTS = 500; // $5 socio
 
-function getStripe(): Stripe {
-  return new Stripe(stripeSecret.value());
-}
+const MP_API = "https://api.mercadopago.com";
 
-/** Fecha "hoy" en zona horaria de Ciudad de México (YYYY-MM-DD). */
-function todayStr(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Mexico_City",
-  }).format(new Date());
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function requireAuth(request: CallableRequest): string {
   const uid = request.auth?.uid;
@@ -39,69 +42,174 @@ function requireAuth(request: CallableRequest): string {
   return uid;
 }
 
-function requireStaff(request: CallableRequest): void {
-  const role = request.auth?.token?.role;
-  if (role !== "employee" && role !== "admin") {
-    throw new HttpsError("permission-denied", "Acción solo para personal.");
+/** Código de recogida corto, p. ej. "K4T9". */
+function pickupCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
   }
+  return code;
 }
 
-async function ensureCustomer(
-  uid: string,
-  user: FirebaseFirestore.DocumentData,
-  stripe: Stripe
-): Promise<string> {
-  if (typeof user.stripeCustomerId === "string") return user.stripeCustomerId;
-  const customer = await stripe.customers.create({
-    email: user.email,
-    metadata: {uid},
+/** Llamada REST a Mercado Pago con un bearer token. */
+async function mpFetch<T>(
+  path: string,
+  token: string,
+  init?: {method?: string; body?: unknown}
+): Promise<T> {
+  const res = await fetch(`${MP_API}${path}`, {
+    method: init?.method ?? "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: init?.body ? JSON.stringify(init.body) : undefined,
   });
-  await admin.firestore().collection("users").doc(uid).set(
-    {stripeCustomerId: customer.id},
-    {merge: true}
-  );
-  return customer.id;
+  const data = await res.json();
+  if (!res.ok) {
+    throw new HttpsError(
+      "internal",
+      `Mercado Pago (${res.status}): ${JSON.stringify(data)}`
+    );
+  }
+  return data as T;
 }
 
-async function uidFromCustomer(
-  customerId: string,
-  db: FirebaseFirestore.Firestore
-): Promise<string | null> {
-  const snap = await db
-    .collection("users")
-    .where("stripeCustomerId", "==", customerId)
-    .limit(1)
+/** Token de la cafetería (obtenido en el OAuth). Lanza si no está conectada. */
+async function cafeAccessToken(cafeId: string): Promise<string> {
+  const snap = await admin
+    .firestore()
+    .collection("cafe_payments")
+    .doc(cafeId)
     .get();
-  return snap.empty ? null : snap.docs[0].id;
+  const token = snap.data()?.accessToken as string | undefined;
+  if (!token) {
+    throw new HttpsError(
+      "failed-precondition",
+      "La cafetería aún no conectó su cuenta de Mercado Pago."
+    );
+  }
+  return token;
 }
+
+// ─── Paso 1: Conexión de la cafetería con Mercado Pago (OAuth) ───────────────
 
 /**
- * [CLIENTE] Crea la orden y el PaymentIntent. El servidor recalcula el total
- * desde `products/` y aplica el beneficio de socio si corresponde.
+ * [CAFÉ] Devuelve la URL para que el dueño autorice a Barra a cobrar en su
+ * nombre. El `state` lleva el id de la cafetería para el callback.
  */
-export const createPaymentIntent = onCall(
-  {secrets: [stripeSecret]},
+export const mpConnectUrl = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const cafeId = request.data?.cafeId as string | undefined;
+  if (!cafeId) throw new HttpsError("invalid-argument", "Falta cafeId.");
+
+  // Solo el dueño (o un admin) puede conectar la cuenta de esa cafetería.
+  const staff = (
+    await admin.firestore().collection("staff").doc(uid).get()
+  ).data();
+  const isOwner = staff?.branchId === cafeId;
+  const isAdmin = staff?.role === "admin";
+  if (!isOwner && !isAdmin) {
+    throw new HttpsError("permission-denied", "No es tu cafetería.");
+  }
+
+  const url =
+    "https://auth.mercadopago.com/authorization" +
+    `?client_id=${encodeURIComponent(MP_CLIENT_ID.value())}` +
+    "&response_type=code&platform_id=mp" +
+    `&state=${encodeURIComponent(cafeId)}` +
+    `&redirect_uri=${encodeURIComponent(MP_REDIRECT_URI.value())}`;
+
+  return {url};
+});
+
+/**
+ * [CAFÉ] Callback de OAuth: Mercado Pago regresa aquí con `code` + `state`.
+ * Intercambiamos el code por los tokens de la cafetería y los guardamos.
+ */
+export const mpOAuthCallback = onRequest(
+  {secrets: [MP_CLIENT_SECRET]},
+  async (req, res) => {
+    const code = req.query.code as string | undefined;
+    const cafeId = req.query.state as string | undefined;
+    if (!code || !cafeId) {
+      res.status(400).send("Faltan parámetros de autorización.");
+      return;
+    }
+
+    try {
+      const token = await mpFetch<{
+        access_token: string;
+        refresh_token: string;
+        user_id: number;
+        public_key: string;
+      }>("/oauth/token", "", {
+        method: "POST",
+        body: {
+          client_id: MP_CLIENT_ID.value(),
+          client_secret: MP_CLIENT_SECRET.value(),
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: MP_REDIRECT_URI.value(),
+        },
+      });
+
+      const db = admin.firestore();
+      // Credenciales sensibles: colección aparte (bloquear a clientes en rules).
+      await db.collection("cafe_payments").doc(cafeId).set({
+        mpUserId: token.user_id,
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token,
+        publicKey: token.public_key,
+        connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      // Bandera pública para que la app sepa que ya está conectada.
+      await db.collection("cafes").doc(cafeId).set(
+        {mpConnected: true},
+        {merge: true}
+      );
+
+      res.redirect(`${APP_RETURN_URL.value()}?mp=connected`);
+    } catch (err) {
+      res.status(500).send(`Error al conectar: ${(err as Error).message}`);
+    }
+  }
+);
+
+// ─── Paso 2: Cobro del pedido con split + webhook (listo para habilitar) ─────
+
+/**
+ * [CLIENTE] Crea el pedido (sin pagar) y genera el cobro en Mercado Pago con
+ * la comisión de Barra retenida (`marketplace_fee`). Devuelve la URL de pago.
+ * El servidor recalcula los montos desde Firestore (no confía en el cliente).
+ */
+export const createOrderPayment = onCall(
+  {secrets: [MP_ACCESS_TOKEN]},
   async (request) => {
     const uid = requireAuth(request);
+    const branchId = request.data?.branchId as string | undefined;
     const items = request.data?.items as
       | {productId: string; quantity: number}[]
       | undefined;
-    const branchId = request.data?.branchId as string | undefined;
+    if (!branchId) throw new HttpsError("invalid-argument", "Falta sucursal.");
     if (!items || items.length === 0) {
       throw new HttpsError("invalid-argument", "El carrito está vacío.");
-    }
-    if (!branchId) {
-      throw new HttpsError("invalid-argument", "Falta la sucursal.");
     }
 
     const db = admin.firestore();
 
+    // 1) Recalcular subtotal desde el menú real de la cafetería.
     let subtotal = 0;
     const orderItems: FirebaseFirestore.DocumentData[] = [];
-    let eligiblePriceCents: number | null = null;
-
+    const mpItems: Record<string, unknown>[] = [];
     for (const it of items) {
-      const snap = await db.collection("products").doc(it.productId).get();
+      const snap = await db
+        .collection("cafes")
+        .doc(branchId)
+        .collection("products")
+        .doc(it.productId)
+        .get();
       if (!snap.exists) {
         throw new HttpsError("not-found", `Producto ${it.productId} no existe.`);
       }
@@ -109,273 +217,126 @@ export const createPaymentIntent = onCall(
       const qty = Math.max(1, Math.floor(it.quantity || 1));
       const priceCents = Number(p.priceCents) || 0;
       subtotal += priceCents * qty;
-      if (p.eligibleForDailyPerk === true && eligiblePriceCents === null) {
-        eligiblePriceCents = priceCents;
-      }
       orderItems.push({
         productId: it.productId,
         name: p.name,
         priceCents,
         quantity: qty,
       });
+      mpItems.push({
+        title: String(p.name),
+        quantity: qty,
+        unit_price: priceCents / 100,
+        currency_id: "MXN",
+      });
     }
 
-    // Beneficio de socio: 1 Americano/día a $1.
-    const userSnap = await db.collection("users").doc(uid).get();
-    const user = userSnap.data() || {};
-    const isSubscriber = user.isSubscriber === true;
-    const perkAvailable = isSubscriber && user.lastPerkDate !== todayStr();
+    // 2) Cuota de servicio (socio vs no socio) y comisión de Barra.
+    const user = (await db.collection("users").doc(uid).get()).data() || {};
+    const isMember = user.isSubscriber === true;
+    const feeCents = isMember ? MEMBER_FEE_CENTS : SERVICE_FEE_CENTS;
+    const commissionCents = Math.round(subtotal * COMMISSION_RATE);
+    const totalCents = subtotal + feeCents;
+    const marketplaceFeeCents = commissionCents + feeCents; // lo que retiene Barra
 
-    let discount = 0;
-    if (perkAvailable && eligiblePriceCents !== null) {
-      discount = Math.max(0, eligiblePriceCents - SOCIO_PRICE_CENTS);
+    // La cuota de servicio es un concepto más en el cobro.
+    if (feeCents > 0) {
+      mpItems.push({
+        title: "Cuota de servicio Barra",
+        quantity: 1,
+        unit_price: feeCents / 100,
+        currency_id: "MXN",
+      });
     }
-    const perkApplied = discount > 0;
-    const totalCents = subtotal - discount;
 
+    // 3) Crear el pedido SIN pagar (invisible para la cafetería hasta el pago).
     const now = admin.firestore.Timestamp.now();
     const orderRef = await db.collection("orders").add({
       userId: uid,
       branchId,
       items: orderItems,
       totalCents,
-      status: "awaiting_payment",
+      status: "pending",
       createdAt: now,
       estimatedReadyAt: admin.firestore.Timestamp.fromMillis(
         now.toMillis() + 5 * 60 * 1000
       ),
-      lockerNumber: null,
-      perkApplied,
+      pickupCode: pickupCode(),
+      paymentMethod: "mercadopago",
+      paid: false,
     });
 
-    const stripe = getStripe();
-    const customerId = await ensureCustomer(uid, user, stripe);
-    const intent = await stripe.paymentIntents.create({
-      amount: totalCents,
-      currency: "mxn",
-      customer: customerId,
-      automatic_payment_methods: {enabled: true},
-      metadata: {orderId: orderRef.id, uid, perkApplied: String(perkApplied)},
-    });
+    // 4) Crear la preferencia de pago con el token de la cafetería + split.
+    const sellerToken = await cafeAccessToken(branchId);
+    const pref = await mpFetch<{id: string; init_point: string}>(
+      "/checkout/preferences", sellerToken, {
+        method: "POST",
+        body: {
+        items: mpItems,
+        marketplace_fee: marketplaceFeeCents / 100,
+        external_reference: orderRef.id,
+        notification_url: `${MP_REDIRECT_URI.value().replace(
+          "mpOAuthCallback",
+          "mpWebhook"
+        )}`,
+        back_urls: {
+          success: `${APP_RETURN_URL.value()}?order=${orderRef.id}`,
+          pending: `${APP_RETURN_URL.value()}?order=${orderRef.id}`,
+          failure: `${APP_RETURN_URL.value()}?order=${orderRef.id}&pay=failed`,
+        },
+        auto_return: "approved",
+        metadata: {orderId: orderRef.id},
+        },
+      });
 
-    return {
-      clientSecret: intent.client_secret,
-      orderId: orderRef.id,
-      amountCents: totalCents,
-      perkApplied,
-    };
+    await orderRef.update({mpPreferenceId: pref.id});
+
+    return {orderId: orderRef.id, initPoint: pref.init_point};
   }
 );
 
 /**
- * [CLIENTE] Inicia la suscripción de socio con Stripe Billing.
+ * Webhook de Mercado Pago. Cuando un pago se aprueba, marca el pedido como
+ * pagado; a partir de ahí la cafetería lo ve en su cola.
  */
-export const createSubscription = onCall(
-  {secrets: [stripeSecret]},
-  async (request) => {
-    const uid = requireAuth(request);
-    const db = admin.firestore();
-    const userSnap = await db.collection("users").doc(uid).get();
-    const user = userSnap.data() || {};
-
-    const stripe = getStripe();
-    const customerId = await ensureCustomer(uid, user, stripe);
-
-    const subscription = await stripe.subscriptions.create({
-      customer: customerId,
-      items: [{price: subscriptionPrice.value()}],
-      payment_behavior: "default_incomplete",
-      payment_settings: {save_default_payment_method: "on_subscription"},
-      expand: ["latest_invoice.payment_intent"],
-    });
-
-    const invoice = subscription.latest_invoice as Stripe.Invoice;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pi = (invoice as any).payment_intent as Stripe.PaymentIntent;
-
-    return {clientSecret: pi.client_secret, subscriptionId: subscription.id};
-  }
-);
-
-/**
- * Webhook de Stripe. Fuente de verdad para pagos y estado de suscripción.
- */
-export const stripeWebhook = onRequest(
-  {secrets: [stripeSecret, webhookSecret]},
+export const mpWebhook = onRequest(
+  {secrets: [MP_ACCESS_TOKEN]},
   async (req, res) => {
-    const stripe = getStripe();
-    const signature = req.headers["stripe-signature"] as string;
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(
-        // rawBody lo agrega Firebase al request de Express.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (req as any).rawBody,
-        signature,
-        webhookSecret.value()
-      );
-    } catch (err) {
-      res.status(400).send(`Webhook Error: ${(err as Error).message}`);
+    // MP notifica con { type: "payment", data: { id } } (o query params).
+    const paymentId =
+      (req.body?.data?.id as string | undefined) ??
+      (req.query["data.id"] as string | undefined) ??
+      (req.query.id as string | undefined);
+    const topic = (req.body?.type as string | undefined) ??
+      (req.query.topic as string | undefined);
+
+    if (topic && topic !== "payment") {
+      res.status(200).send("ignored");
+      return;
+    }
+    if (!paymentId) {
+      res.status(200).send("no id");
       return;
     }
 
-    const db = admin.firestore();
+    try {
+      const payment = (await mpFetch(
+        `/v1/payments/${paymentId}`,
+        MP_ACCESS_TOKEN.value()
+      )) as {status: string; external_reference?: string};
 
-    switch (event.type) {
-      case "payment_intent.succeeded": {
-        const pi = event.data.object as Stripe.PaymentIntent;
-        const orderId = pi.metadata.orderId;
-        const uid = pi.metadata.uid;
-        if (orderId) {
-          await db
-            .collection("orders")
-            .doc(orderId)
-            .update({status: "pending", paymentRef: pi.id});
-        }
-        if (pi.metadata.perkApplied === "true" && uid) {
-          await db
-            .collection("users")
-            .doc(uid)
-            .set({lastPerkDate: todayStr()}, {merge: true});
-        }
-        break;
+      const orderId = payment.external_reference;
+      if (payment.status === "approved" && orderId) {
+        await admin
+          .firestore()
+          .collection("orders")
+          .doc(orderId)
+          .set({paid: true, paymentRef: paymentId}, {merge: true});
       }
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        const uid = await uidFromCustomer(sub.customer as string, db);
-        if (uid) {
-          const active = sub.status === "active" || sub.status === "trialing";
-          await db
-            .collection("users")
-            .doc(uid)
-            .set(
-              {isSubscriber: active, subscriptionStatus: sub.status},
-              {merge: true}
-            );
-        }
-        break;
-      }
-      default:
-        break;
+      res.status(200).send("ok");
+    } catch (err) {
+      // 200 para que MP no reintente en bucle ante errores no recuperables.
+      res.status(200).send(`handled: ${(err as Error).message}`);
     }
-
-    res.json({received: true});
   }
 );
-
-/**
- * [EMPLEADO] Marca la orden lista y asigna un casillero libre (transaccional).
- */
-export const markOrderReady = onCall(async (request) => {
-  requireStaff(request);
-  const orderId = request.data?.orderId as string | undefined;
-  if (!orderId) throw new HttpsError("invalid-argument", "Falta orderId.");
-
-  const db = admin.firestore();
-
-  const order = (await db.collection("orders").doc(orderId).get()).data();
-  if (!order) throw new HttpsError("not-found", "Orden no encontrada.");
-  const branchId = order.branchId as string;
-
-  const lockerNumber = await db.runTransaction(async (tx) => {
-    // Casillero libre de la misma sucursal de la orden.
-    const q = await tx.get(
-      db
-        .collection("lockers")
-        .where("branchId", "==", branchId)
-        .where("status", "==", "free")
-        .limit(1)
-    );
-    if (q.empty) {
-      throw new HttpsError("resource-exhausted", "No hay casilleros libres.");
-    }
-    const lockerDoc = q.docs[0];
-    tx.update(lockerDoc.ref, {status: "occupied", currentOrderId: orderId});
-    return Number(lockerDoc.data().number);
-  });
-
-  const pin = String(1000 + Math.floor(Math.random() * 9000));
-  await db
-    .collection("orders")
-    .doc(orderId)
-    .update({status: "ready", lockerNumber, lockerPin: pin});
-
-  // TODO(hardware): reservar físicamente el casillero si el proveedor lo exige.
-  return {lockerNumber};
-});
-
-/**
- * [CLIENTE] Abre el casillero de su pedido y confirma la recogida.
- */
-export const openLocker = onCall(async (request) => {
-  const uid = requireAuth(request);
-  const orderId = request.data?.orderId as string | undefined;
-  if (!orderId) throw new HttpsError("invalid-argument", "Falta orderId.");
-
-  const db = admin.firestore();
-  const orderRef = db.collection("orders").doc(orderId);
-  const order = (await orderRef.get()).data();
-  if (!order || order.userId !== uid) {
-    throw new HttpsError("permission-denied", "No es tu pedido.");
-  }
-  if (order.status !== "ready") {
-    throw new HttpsError("failed-precondition", "El pedido no está listo.");
-  }
-
-  const lockerNumber = Number(order.lockerNumber);
-  // TODO(hardware): enviar el comando de apertura al casillero `lockerNumber`.
-  await orderRef.update({status: "pickedUp"});
-
-  const q = await db
-    .collection("lockers")
-    .where("number", "==", lockerNumber)
-    .limit(1)
-    .get();
-  if (!q.empty) {
-    await q.docs[0].ref.update({status: "free", currentOrderId: null});
-  }
-
-  return {opened: true};
-});
-
-/**
- * [EMPLEADO] Cierre de caja: calcula totales del turno y lo cierra.
- */
-export const closeShift = onCall(async (request) => {
-  requireStaff(request);
-  const shiftId = request.data?.shiftId as string | undefined;
-  if (!shiftId) throw new HttpsError("invalid-argument", "Falta shiftId.");
-
-  const db = admin.firestore();
-  const shiftRef = db.collection("shifts").doc(shiftId);
-  const shift = (await shiftRef.get()).data();
-  if (!shift) throw new HttpsError("not-found", "Turno no encontrado.");
-
-  const startedAt = shift.startedAt as admin.firestore.Timestamp;
-  const branchId = shift.branchId as string;
-  const closedAt = admin.firestore.Timestamp.now();
-
-  const ordersSnap = await db
-    .collection("orders")
-    .where("createdAt", ">=", startedAt)
-    .where("createdAt", "<=", closedAt)
-    .get();
-
-  let ordersCount = 0;
-  let totalSalesCents = 0;
-  ordersSnap.forEach((d) => {
-    if (d.data().branchId !== branchId) return; // solo esta sucursal
-    ordersCount += 1;
-    totalSalesCents += Number(d.data().totalCents) || 0;
-  });
-
-  await shiftRef.update({
-    endedAt: closedAt,
-    ordersCount,
-    totalSalesCents,
-  });
-
-  return {ordersCount, totalSalesCents};
-});

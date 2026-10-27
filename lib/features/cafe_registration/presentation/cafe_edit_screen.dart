@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -12,6 +13,7 @@ import '../../branches/data/branch_repository.dart';
 import '../../branches/data/cafe_profile_repository.dart';
 import '../../branches/domain/branch.dart';
 import '../../staff/application/shift_controller.dart';
+import '../data/cafe_payments_service.dart';
 import '../data/geocoding_service.dart';
 import 'photo_url_field.dart';
 
@@ -34,6 +36,8 @@ class _CafeEditScreenState extends ConsumerState<CafeEditScreen> {
 
   bool _initialized = false;
   LatLng? _location;
+  bool _mpConnected = false;
+  bool _connectingMp = false;
   bool _saving = false;
   String? _error;
 
@@ -65,7 +69,44 @@ class _CafeEditScreenState extends ConsumerState<CafeEditScreen> {
     if (cafe.lat != null && cafe.lng != null) {
       _location = LatLng(cafe.lat!, cafe.lng!);
     }
+    _mpConnected = cafe.mpConnected;
     _initialized = true;
+  }
+
+  Future<void> _connectMercadoPago(String cafeId) async {
+    setState(() => _connectingMp = true);
+    try {
+      final url =
+          await ref.read(cafePaymentsServiceProvider).connectUrl(cafeId);
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok) throw Exception('No se pudo abrir Mercado Pago.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Autoriza en Mercado Pago y vuelve a la app. '
+              'Luego recarga esta pantalla.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No pudimos iniciar la conexión. '
+              'Falta desplegar el backend de pagos.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _connectingMp = false);
+    }
   }
 
   void _onAddressChanged(String value) {
@@ -208,6 +249,15 @@ class _CafeEditScreenState extends ConsumerState<CafeEditScreen> {
           selected: _location,
           onPick: (p) => setState(() => _location = p),
         ),
+        const SizedBox(height: AppSpacing.xl),
+
+        _label('COBROS'),
+        const SizedBox(height: AppSpacing.sm),
+        _MercadoPagoCard(
+          connected: _mpConnected,
+          loading: _connectingMp,
+          onConnect: () => _connectMercadoPago(cafeId),
+        ),
 
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
@@ -252,6 +302,98 @@ class _CafeEditScreenState extends ConsumerState<CafeEditScreen> {
       keyboardType: keyboard,
       autocorrect: false,
       decoration: InputDecoration(hintText: label),
+    );
+  }
+}
+
+/// Tarjeta de conexión con Mercado Pago (para que la cafetería pueda cobrar).
+class _MercadoPagoCard extends StatelessWidget {
+  const _MercadoPagoCard({
+    required this.connected,
+    required this.loading,
+    required this.onConnect,
+  });
+
+  final bool connected;
+  final bool loading;
+  final VoidCallback onConnect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.paper,
+                  borderRadius: BorderRadius.circular(AppRadius.button),
+                ),
+                child: const Icon(Icons.account_balance_wallet_outlined,
+                    size: 20, color: AppColors.ink),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Mercado Pago',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      connected
+                          ? 'Conectado · recibes tus pagos'
+                          : 'Conéctalo para recibir pagos de tus pedidos',
+                      style: TextStyle(
+                        color: connected ? AppColors.success : AppColors.muted,
+                        fontSize: 13,
+                        fontWeight:
+                            connected ? FontWeight.w700 : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (connected)
+                const Icon(Icons.verified_rounded,
+                    color: AppColors.success, size: 24),
+            ],
+          ),
+          if (!connected) ...[
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: AppRadius.buttonHeight,
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: loading ? null : onConnect,
+                child: loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.4, color: Colors.white),
+                      )
+                    : const Text('Conectar con Mercado Pago'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -40,6 +40,7 @@ class FirestoreCafeProfileRepository implements CafeProfileRepository {
       rating: (data['rating'] as num?)?.toDouble() ?? 4.8,
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),
+      mpConnected: data['mpConnected'] as bool? ?? false,
     );
   }
 
