@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/money.dart';
 import '../data/orders_repository.dart';
 import '../domain/order.dart';
 
@@ -415,6 +416,43 @@ class _PickupCodeCard extends StatelessWidget {
                   : FontWeight.w400,
             ),
           ),
+          if (order.paymentMethod == PaymentMethod.payAtCounter &&
+              !collected) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: onDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : AppColors.paper,
+                borderRadius: BorderRadius.circular(AppRadius.button),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.payments_outlined, size: 18, color: fg),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Pagas en barra al recoger',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: fg,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatMxn(order.totalCents),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: fg,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

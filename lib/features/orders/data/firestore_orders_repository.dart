@@ -43,8 +43,13 @@ class FirestoreOrdersRepository implements OrdersRepository {
       _orders.doc(orderId).snapshots().map((doc) => _fromDoc(doc));
 
   @override
-  Future<String> create(List<CartItem> items, int totalCents, String userId,
-      String branchId) async {
+  Future<String> create(
+    List<CartItem> items,
+    int totalCents,
+    String userId,
+    String branchId, {
+    PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
+  }) async {
     final now = DateTime.now();
     final doc = await _orders.add({
       'userId': userId,
@@ -56,6 +61,7 @@ class FirestoreOrdersRepository implements OrdersRepository {
       'estimatedReadyAt':
           Timestamp.fromDate(now.add(const Duration(minutes: 5))),
       'pickupCode': generatePickupCode(),
+      'paymentMethod': paymentMethod.id,
     });
     return doc.id;
   }
@@ -112,6 +118,8 @@ class FirestoreOrdersRepository implements OrdersRepository {
       userId: data['userId'] as String? ?? '',
       branchId: data['branchId'] as String? ?? '',
       pickupCode: data['pickupCode'] as String? ?? '----',
+      paymentMethod:
+          PaymentMethodInfo.fromId(data['paymentMethod'] as String?),
     );
   }
 

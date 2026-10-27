@@ -404,6 +404,25 @@ class _OrderCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (order.paymentMethod == PaymentMethod.payAtCounter &&
+                    !collected) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      const Icon(Icons.payments_outlined,
+                          size: 13, color: AppColors.warning),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Cobrar en barra · ${formatMxn(order.totalCents)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (order.status == OrderStatus.ready) ...[
                   const SizedBox(height: AppSpacing.md),
                   Row(

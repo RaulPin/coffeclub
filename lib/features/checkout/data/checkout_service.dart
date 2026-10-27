@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_config.dart';
 import '../../cart/domain/cart_item.dart';
 import '../../orders/data/orders_repository.dart';
+import '../../orders/domain/order.dart';
 import 'stripe_checkout_service.dart';
 
 /// Resultado de colocar un pedido.
@@ -25,6 +26,7 @@ abstract interface class CheckoutService {
     required int amountCents,
     required String userId,
     required String branchId,
+    PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
   });
 }
 
@@ -40,9 +42,16 @@ class MockCheckoutService implements CheckoutService {
     required int amountCents,
     required String userId,
     required String branchId,
+    PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 800)); // "pago"
-    final orderId = await _orders.create(items, amountCents, userId, branchId);
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    final orderId = await _orders.create(
+      items,
+      amountCents,
+      userId,
+      branchId,
+      paymentMethod: paymentMethod,
+    );
     return PlaceOrderResult(success: true, orderId: orderId);
   }
 }

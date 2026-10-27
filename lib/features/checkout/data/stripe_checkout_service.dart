@@ -3,6 +3,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../cart/domain/cart_item.dart';
+import '../../orders/domain/order.dart';
 import 'checkout_service.dart';
 
 /// Pago real con Stripe. El flujo seguro:
@@ -22,6 +23,7 @@ class StripeCheckoutService implements CheckoutService {
     required int amountCents, // ignorado: el servidor es la fuente de verdad
     required String userId, // se toma del token de auth en el servidor
     required String branchId,
+    PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
   }) async {
     try {
       final response =

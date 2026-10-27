@@ -30,9 +30,14 @@ abstract interface class OrdersRepository {
   /// Una orden específica, para el seguimiento del cliente.
   Stream<CoffeeOrder?> watchOrder(String orderId);
 
-  /// [CLIENTE] Crea una orden pagada; queda en cola (`pending`).
+  /// [CLIENTE] Crea una orden; queda en cola (`pending`).
   Future<String> create(
-      List<CartItem> items, int totalCents, String userId, String branchId);
+    List<CartItem> items,
+    int totalCents,
+    String userId,
+    String branchId, {
+    PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
+  });
 
   /// [CAFETERÍA] Empieza a preparar.
   Future<void> startPreparing(String orderId);
@@ -203,8 +208,13 @@ class MockOrdersRepository implements OrdersRepository {
       });
 
   @override
-  Future<String> create(List<CartItem> items, int totalCents, String userId,
-      String branchId) async {
+  Future<String> create(
+    List<CartItem> items,
+    int totalCents,
+    String userId,
+    String branchId, {
+    PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
+  }) async {
     final now = DateTime.now();
     final order = CoffeeOrder(
       id: 'ord_${now.millisecondsSinceEpoch}',
@@ -216,6 +226,7 @@ class MockOrdersRepository implements OrdersRepository {
       userId: userId,
       branchId: branchId,
       pickupCode: generatePickupCode(),
+      paymentMethod: paymentMethod,
     );
     _orders = [..._orders, order];
     _emit();

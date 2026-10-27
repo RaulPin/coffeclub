@@ -10,6 +10,7 @@ import '../../branches/data/branch_repository.dart';
 import '../../cart/application/cart_controller.dart';
 import '../../cart/application/pricing.dart';
 import '../../orders/data/orders_repository.dart';
+import '../../orders/domain/order.dart';
 import '../data/checkout_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _loading = false;
+  PaymentMethod _method = PaymentMethod.payAtCounter;
 
   Future<void> _pay() async {
     setState(() => _loading = true);
@@ -36,6 +38,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           amountCents: pricing.totalCents,
           userId: userId,
           branchId: branchId,
+          paymentMethod: _method,
         );
     if (!mounted) return;
 
@@ -85,12 +88,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('Método de pago'),
           const SizedBox(height: AppSpacing.md),
-          _InfoRow(
-            icon: Icons.credit_card,
-            title: 'Tarjeta •••• 4242',
-            subtitle: 'Pago con Stripe (demo)',
-            trailing: const Icon(Icons.check_circle,
-                color: AppColors.success, size: 22),
+          _PayOption(
+            icon: Icons.storefront_outlined,
+            title: 'Pagar en barra',
+            subtitle: 'Efectivo o tarjeta al recoger tu pedido',
+            selected: _method == PaymentMethod.payAtCounter,
+            onTap: () =>
+                setState(() => _method = PaymentMethod.payAtCounter),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _PayOption(
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'Mercado Pago',
+            subtitle: 'Pago en línea · próximamente',
+            selected: false,
+            onTap: null,
           ),
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('Resumen'),
@@ -160,10 +172,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.lock_outline,
+                            Icon(Icons.check_circle_outline,
                                 size: 18, color: Colors.white),
                             SizedBox(width: AppSpacing.sm),
-                            Text('Pagar'),
+                            Text('Confirmar pedido'),
                           ],
                         ),
                         Text(formatMxn(total)),
@@ -232,6 +244,88 @@ class _InfoRow extends StatelessWidget {
           ),
           if (trailing != null) trailing!,
         ],
+      ),
+    );
+  }
+}
+
+/// Opción de método de pago, seleccionable. Si [onTap] es null se ve
+/// deshabilitada (p. ej. "próximamente").
+class _PayOption extends StatelessWidget {
+  const _PayOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    return Opacity(
+      opacity: disabled ? 0.5 : 1,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: selected ? AppColors.ink : AppColors.border,
+              width: selected ? 2 : 1,
+            ),
+            boxShadow: AppColors.cardShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.paper,
+                  borderRadius: BorderRadius.circular(AppRadius.button),
+                ),
+                child: Icon(icon, size: 20, color: AppColors.ink),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style:
+                          const TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selected ? AppColors.ink : AppColors.faint,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

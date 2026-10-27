@@ -17,6 +17,32 @@ extension OrderStatusLabel on OrderStatus {
       };
 }
 
+/// Forma de pago elegida por el cliente.
+enum PaymentMethod {
+  /// Paga en efectivo o tarjeta en la barra, al recoger.
+  payAtCounter,
+
+  /// Pago en línea con Mercado Pago (próximamente).
+  mercadoPago,
+}
+
+extension PaymentMethodInfo on PaymentMethod {
+  String get id => switch (this) {
+        PaymentMethod.payAtCounter => 'counter',
+        PaymentMethod.mercadoPago => 'mercadopago',
+      };
+
+  String get label => switch (this) {
+        PaymentMethod.payAtCounter => 'Pagar en barra',
+        PaymentMethod.mercadoPago => 'Mercado Pago',
+      };
+
+  static PaymentMethod fromId(String? id) => switch (id) {
+        'mercadopago' => PaymentMethod.mercadoPago,
+        _ => PaymentMethod.payAtCounter,
+      };
+}
+
 /// Pedido realizado por un cliente en una cafetería.
 class CoffeeOrder {
   const CoffeeOrder({
@@ -29,6 +55,7 @@ class CoffeeOrder {
     required this.userId,
     required this.branchId,
     required this.pickupCode,
+    this.paymentMethod = PaymentMethod.payAtCounter,
   });
 
   final String id;
@@ -36,6 +63,9 @@ class CoffeeOrder {
   final int totalCents;
   final OrderStatus status;
   final DateTime createdAt;
+
+  /// Forma de pago elegida al hacer el pedido.
+  final PaymentMethod paymentMethod;
 
   /// Id del cliente que hizo el pedido.
   final String userId;
@@ -62,5 +92,6 @@ class CoffeeOrder {
         userId: userId,
         branchId: branchId,
         pickupCode: pickupCode,
+        paymentMethod: paymentMethod,
       );
 }
