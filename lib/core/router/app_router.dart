@@ -11,6 +11,7 @@ import '../../features/discovery/presentation/discovery_screen.dart';
 import '../../features/menu/presentation/manage_menu_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/orders/presentation/order_tracking_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/staff/application/staff_auth_controller.dart';
 import '../../features/staff/domain/staff_user.dart';
 import '../../features/staff/presentation/admin_branch_screen.dart';
@@ -80,6 +81,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/subscription',
                 builder: (_, __) => const SubscriptionScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (_, __) => const ProfileScreen(),
               ),
             ],
           ),

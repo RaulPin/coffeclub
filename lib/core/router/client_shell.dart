@@ -17,6 +17,7 @@ class ClientShell extends ConsumerWidget {
     (icon: Icons.shopping_bag_outlined, label: 'Carrito'),
     (icon: Icons.schedule, label: 'Mi pedido'),
     (icon: Icons.card_membership, label: 'Club'),
+    (icon: Icons.person_outline_rounded, label: 'Perfil'),
   ];
 
   void _goBranch(int index) {
