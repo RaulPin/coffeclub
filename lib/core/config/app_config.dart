@@ -33,6 +33,19 @@ class AppConfig {
   /// Nombre comercial.
   static const String appName = 'Barra';
 
+  /// Correos que entran como ADMINISTRADOR general (ven todas las cafeterías y
+  /// sus ventas). Edita esta lista con los correos de tu equipo de dirección.
+  /// Quien inicie sesión en la estación con uno de estos correos obtiene el
+  /// panel de administración, sin necesidad de configurar nada en Firebase.
+  static const List<String> adminEmails = <String>[
+    'raulpineda.0197@gmail.com',
+  ];
+
+  /// `true` si el correo pertenece a un administrador general.
+  static bool isAdminEmail(String email) => adminEmails
+      .map((e) => e.toLowerCase())
+      .contains(email.trim().toLowerCase());
+
   // --- Modelo de negocio ---
 
   /// Comisión que Barra cobra a la cafetería por pedido (sobre el subtotal

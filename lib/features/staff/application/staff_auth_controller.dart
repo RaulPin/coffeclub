@@ -22,6 +22,12 @@ class StaffAuthController extends StateNotifier<StaffUser?> {
     return user;
   }
 
+  Future<StaffUser> signInWithGoogle() async {
+    final user = await _repository.signInWithGoogle();
+    state = user;
+    return user;
+  }
+
   /// Fija la sesión tras registrar una cafetería (ya quedó autenticada).
   void applySession(StaffUser user) => state = user;
 

@@ -4,6 +4,7 @@ import '../domain/staff_user.dart';
 abstract interface class StaffAuthRepository {
   StaffUser? get currentUser;
   Future<StaffUser> signIn(String email, String password);
+  Future<StaffUser> signInWithGoogle();
   Future<void> signOut();
 }
 
@@ -60,6 +61,18 @@ class MockStaffAuthRepository implements StaffAuthRepository {
     }
     _current = account.user;
     return account.user;
+  }
+
+  @override
+  Future<StaffUser> signInWithGoogle() async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    _current = const StaffUser(
+      id: 'admin_demo',
+      name: 'Administrador',
+      email: 'admin@barra.mx',
+      role: StaffRole.admin,
+    );
+    return _current!;
   }
 
   @override

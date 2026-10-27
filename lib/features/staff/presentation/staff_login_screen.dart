@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +50,37 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
       setState(() {
         _loading = false;
         _error = 'Usuario o contraseña incorrectos';
+      });
+    }
+  }
+
+  Future<void> _googleSignIn() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final user =
+          await ref.read(staffAuthControllerProvider.notifier).signInWithGoogle();
+      if (user.role == StaffRole.employee && user.branchId != null) {
+        ref
+            .read(shiftControllerProvider.notifier)
+            .startShift(user.name, user.branchId!);
+      }
+      if (mounted) context.go('/staff');
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'canceled' || e.code == 'popup-closed-by-user') {
+        setState(() => _loading = false);
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = 'No pudimos entrar con Google.';
+      });
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _error = 'Esta cuenta no tiene acceso al panel de tienda.';
       });
     }
   }
@@ -110,6 +142,18 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                 onPressed: _signIn,
                 child: const Text('Iniciar sesión'),
               ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _loading ? null : _googleSignIn,
+              icon: const Text(
+                'G',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF4285F4),
+                ),
+              ),
+              label: const Text('Continuar con Google'),
+            ),
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
