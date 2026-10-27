@@ -18,6 +18,9 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
 
+  # Llamadas HTTP (geocodificación de direcciones)
+  http: ^1.2.2
+
   # State management
   flutter_riverpod: ^2.5.1
 
