@@ -17,6 +17,8 @@ dependencies:
   # Mapa (OpenStreetMap, sin API key)
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  # Cancela la descarga de tiles que ya no se ven (mejor rendimiento en web).
+  flutter_map_cancellable_tile_provider: ^3.0.2
 
   # Llamadas HTTP (geocodificación de direcciones)
   http: ^1.2.2
