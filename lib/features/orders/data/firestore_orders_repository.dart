@@ -20,20 +20,28 @@ class FirestoreOrdersRepository implements OrdersRepository {
 
   static const _activeStatuses = ['pending', 'preparing', 'ready'];
 
+  // Las vistas de la cafetería solo reciben pedidos PAGADOS (filtrado en
+  // cliente para no requerir un índice compuesto en Firestore).
   @override
   Stream<List<CoffeeOrder>> watchAll() => _orders
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map(_fromDoc).whereType<CoffeeOrder>().toList());
+      .map((snap) => snap.docs
+          .map(_fromDoc)
+          .whereType<CoffeeOrder>()
+          .where((o) => o.paid)
+          .toList());
 
   @override
   Stream<List<CoffeeOrder>> watchActive() => _orders
           .where('status', whereIn: _activeStatuses)
           .snapshots()
           .map((snap) {
-        final list =
-            snap.docs.map(_fromDoc).whereType<CoffeeOrder>().toList();
-        // Orden en cliente para no requerir un índice compuesto en Firestore.
+        final list = snap.docs
+            .map(_fromDoc)
+            .whereType<CoffeeOrder>()
+            .where((o) => o.paid)
+            .toList();
         list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         return list;
       });
@@ -62,9 +70,14 @@ class FirestoreOrdersRepository implements OrdersRepository {
           Timestamp.fromDate(now.add(const Duration(minutes: 5))),
       'pickupCode': generatePickupCode(),
       'paymentMethod': paymentMethod.id,
+      'paid': false, // se confirma con markPaid (webhook de Mercado Pago)
     });
     return doc.id;
   }
+
+  @override
+  Future<void> markPaid(String orderId) =>
+      _orders.doc(orderId).update({'paid': true});
 
   @override
   Future<void> startPreparing(String orderId) =>
@@ -120,6 +133,8 @@ class FirestoreOrdersRepository implements OrdersRepository {
       pickupCode: data['pickupCode'] as String? ?? '----',
       paymentMethod:
           PaymentMethodInfo.fromId(data['paymentMethod'] as String?),
+      // Pedidos antiguos sin el campo se consideran pagados (compat).
+      paid: data['paid'] as bool? ?? true,
     );
   }
 

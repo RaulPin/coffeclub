@@ -30,7 +30,8 @@ abstract interface class OrdersRepository {
   /// Una orden específica, para el seguimiento del cliente.
   Stream<CoffeeOrder?> watchOrder(String orderId);
 
-  /// [CLIENTE] Crea una orden; queda en cola (`pending`).
+  /// [CLIENTE] Crea una orden SIN pagar. No entra a la cola de la cafetería
+  /// hasta que el pago se confirma con [markPaid].
   Future<String> create(
     List<CartItem> items,
     int totalCents,
@@ -38,6 +39,10 @@ abstract interface class OrdersRepository {
     String branchId, {
     PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
   });
+
+  /// Confirma el pago de una orden; a partir de aquí la cafetería la ve en su
+  /// cola. En producción lo dispara el webhook de Mercado Pago.
+  Future<void> markPaid(String orderId);
 
   /// [CAFETERÍA] Empieza a preparar.
   Future<void> startPreparing(String orderId);
@@ -103,6 +108,7 @@ class MockOrdersRepository implements OrdersRepository {
         userId: 'demo',
         branchId: branchId,
         pickupCode: pickupCode,
+        paid: true, // los pedidos demo ya están pagados
       );
     }
 
@@ -188,14 +194,17 @@ class MockOrdersRepository implements OrdersRepository {
     yield* _controller.stream;
   }
 
+  // Las vistas de la cafetería solo reciben pedidos PAGADOS.
   @override
-  Stream<List<CoffeeOrder>> watchAll() => _all();
+  Stream<List<CoffeeOrder>> watchAll() =>
+      _all().map((orders) => orders.where((o) => o.paid).toList());
 
   @override
   Stream<List<CoffeeOrder>> watchActive() => _all().map((orders) {
-        final active =
-            orders.where((o) => o.status != OrderStatus.pickedUp).toList()
-              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final active = orders
+            .where((o) => o.paid && o.status != OrderStatus.pickedUp)
+            .toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
         return active;
       });
 
@@ -227,10 +236,16 @@ class MockOrdersRepository implements OrdersRepository {
       branchId: branchId,
       pickupCode: generatePickupCode(),
       paymentMethod: paymentMethod,
+      paid: false, // se confirma con markPaid tras el pago
     );
     _orders = [..._orders, order];
     _emit();
     return order.id;
+  }
+
+  @override
+  Future<void> markPaid(String orderId) async {
+    _update(orderId, (o) => o.copyWith(paid: true));
   }
 
   @override

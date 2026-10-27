@@ -56,6 +56,7 @@ class CoffeeOrder {
     required this.branchId,
     required this.pickupCode,
     this.paymentMethod = PaymentMethod.payAtCounter,
+    this.paid = false,
   });
 
   final String id;
@@ -66,6 +67,10 @@ class CoffeeOrder {
 
   /// Forma de pago elegida al hacer el pedido.
   final PaymentMethod paymentMethod;
+
+  /// `true` cuando el pago fue confirmado. La cafetería SOLO ve y prepara
+  /// pedidos pagados; los no pagados nunca entran a su cola.
+  final bool paid;
 
   /// Id del cliente que hizo el pedido.
   final String userId;
@@ -82,7 +87,7 @@ class CoffeeOrder {
 
   double get total => totalCents / 100;
 
-  CoffeeOrder copyWith({OrderStatus? status}) => CoffeeOrder(
+  CoffeeOrder copyWith({OrderStatus? status, bool? paid}) => CoffeeOrder(
         id: id,
         items: items,
         totalCents: totalCents,
@@ -93,5 +98,6 @@ class CoffeeOrder {
         branchId: branchId,
         pickupCode: pickupCode,
         paymentMethod: paymentMethod,
+        paid: paid ?? this.paid,
       );
 }

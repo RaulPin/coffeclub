@@ -30,7 +30,9 @@ abstract interface class CheckoutService {
   });
 }
 
-/// Implementación de demo: aprueba el pago y crea la orden en el repositorio.
+/// Implementación de demo: crea la orden SIN pagar, simula la aprobación del
+/// pago (como haría el webhook de Mercado Pago) y la confirma. Así el flujo
+/// "prepagado" es idéntico al real: la cafetería solo la ve una vez pagada.
 class MockCheckoutService implements CheckoutService {
   MockCheckoutService(this._orders);
 
@@ -44,7 +46,7 @@ class MockCheckoutService implements CheckoutService {
     required String branchId,
     PaymentMethod paymentMethod = PaymentMethod.payAtCounter,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    // 1) Se crea el pedido pendiente de pago (aún invisible para la cafetería).
     final orderId = await _orders.create(
       items,
       amountCents,
@@ -52,6 +54,10 @@ class MockCheckoutService implements CheckoutService {
       branchId,
       paymentMethod: paymentMethod,
     );
+    // 2) Se simula la pasarela de Mercado Pago.
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    // 3) Pago aprobado → se confirma; ahora entra a la cola de la cafetería.
+    await _orders.markPaid(orderId);
     return PlaceOrderResult(success: true, orderId: orderId);
   }
 }

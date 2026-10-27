@@ -22,7 +22,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _loading = false;
-  PaymentMethod _method = PaymentMethod.payAtCounter;
+  final PaymentMethod _method = PaymentMethod.mercadoPago;
 
   Future<void> _pay() async {
     setState(() => _loading = true);
@@ -88,21 +88,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('Método de pago'),
           const SizedBox(height: AppSpacing.md),
-          _PayOption(
-            icon: Icons.storefront_outlined,
-            title: 'Pagar en barra',
-            subtitle: 'Efectivo o tarjeta al recoger tu pedido',
-            selected: _method == PaymentMethod.payAtCounter,
-            onTap: () =>
-                setState(() => _method = PaymentMethod.payAtCounter),
-          ),
-          const SizedBox(height: AppSpacing.md),
           const _PayOption(
             icon: Icons.account_balance_wallet_outlined,
             title: 'Mercado Pago',
-            subtitle: 'Pago en línea · próximamente',
-            selected: false,
+            subtitle: 'Tarjeta, OXXO o saldo · pago seguro',
+            selected: true,
             onTap: null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              const Icon(Icons.verified_user_outlined,
+                  size: 14, color: AppColors.muted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Tu pedido se envía a la cafetería al confirmarse el pago.',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('Resumen'),
@@ -172,10 +177,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.check_circle_outline,
+                            Icon(Icons.lock_outline,
                                 size: 18, color: Colors.white),
                             SizedBox(width: AppSpacing.sm),
-                            Text('Confirmar pedido'),
+                            Text('Pagar con Mercado Pago'),
                           ],
                         ),
                         Text(formatMxn(total)),
@@ -268,7 +273,7 @@ class _PayOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = onTap == null;
+    final disabled = onTap == null && !selected;
     return Opacity(
       opacity: disabled ? 0.5 : 1,
       child: GestureDetector(
