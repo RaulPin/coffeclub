@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+// Ocultamos el PaymentMethod de Stripe para usar el de nuestro dominio.
+import 'package:flutter_stripe/flutter_stripe.dart' hide PaymentMethod;
 
 import '../../../core/config/app_config.dart';
 import '../../cart/domain/cart_item.dart';
