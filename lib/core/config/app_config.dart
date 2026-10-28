@@ -20,6 +20,11 @@ class AppConfig {
   /// Con esto, las cafeterías se registran solas y entran con su cuenta real.
   static const bool useFirebaseStaffAuth = true;
 
+  /// Cobrar de verdad con Mercado Pago a través del backend (Cloud Functions).
+  /// Déjalo en `false` hasta DESPLEGAR las funciones; mientras tanto el checkout
+  /// simula el pago para poder probar la app completa.
+  static const bool useMercadoPagoBackend = false;
+
   /// `true` si los datos deben leerse/escribirse en Firestore.
   static bool get dataFromFirestore => !useMockBackend || useFirestoreData;
 

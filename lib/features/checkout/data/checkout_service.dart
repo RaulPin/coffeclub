@@ -4,7 +4,7 @@ import '../../../core/config/app_config.dart';
 import '../../cart/domain/cart_item.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
-import 'stripe_checkout_service.dart';
+import 'mercadopago_checkout_service.dart';
 
 /// Resultado de colocar un pedido.
 class PlaceOrderResult {
@@ -63,8 +63,9 @@ class MockCheckoutService implements CheckoutService {
 }
 
 final checkoutServiceProvider = Provider<CheckoutService>((ref) {
-  if (AppConfig.useMockBackend) {
-    return MockCheckoutService(ref.watch(ordersRepositoryProvider));
+  if (AppConfig.useMercadoPagoBackend) {
+    return MercadoPagoCheckoutService();
   }
-  return StripeCheckoutService();
+  // Modo simulado: crea el pedido y aprueba el pago localmente.
+  return MockCheckoutService(ref.watch(ordersRepositoryProvider));
 });
