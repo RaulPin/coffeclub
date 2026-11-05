@@ -75,6 +75,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final email = _email.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() =>
+          _error = 'Escribe tu correo arriba y te enviamos el enlace.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authControllerProvider.notifier).sendPasswordReset(email);
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Te enviamos un correo a $email para restablecer tu contraseña.',
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      if (e.code == 'invalid-email') {
+        setState(() => _error = 'El correo no es válido.');
+      } else if (e.code == 'network-request-failed') {
+        setState(() => _error = 'Sin conexión. Revisa tu internet.');
+      } else {
+        // No revelamos si el correo existe o no.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Si $email tiene cuenta, te enviamos el enlace.'),
+          ),
+        );
+      }
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _error = 'No pudimos enviar el correo. Inténtalo de nuevo.';
+      });
+    }
+  }
+
   Future<void> _googleSignIn() async {
     setState(() {
       _loading = true;
@@ -164,6 +209,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: AppSpacing.md),
                 _field(_password, 'Contraseña', TextInputType.text,
                     obscure: true, onSubmit: _submit),
+                if (!_register)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _loading ? null : _forgotPassword,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        '¿Olvidaste tu contraseña?',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ),
                 if (_error != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Text(_error!,

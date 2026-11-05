@@ -90,6 +90,10 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendPasswordReset(String email) =>
+      _auth.sendPasswordResetEmail(email: email.trim());
+
+  @override
   Future<void> signOut() async {
     if (!kIsWeb) {
       // Cierra también la sesión del plugin de Google en móvil.

@@ -21,6 +21,9 @@ abstract interface class AuthRepository {
   /// Inicia sesión con Google. Lanza si el usuario cancela el flujo.
   Future<AppUser> signInWithGoogle();
 
+  /// Envía un correo para restablecer la contraseña.
+  Future<void> sendPasswordReset(String email);
+
   /// Cierra la sesión.
   Future<void> signOut();
 
@@ -70,6 +73,11 @@ class MockAuthRepository implements AuthRepository {
     );
     _ctrl.add(_user);
     return _user!;
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   @override
