@@ -28,6 +28,9 @@ class StaffAuthController extends StateNotifier<StaffUser?> {
     return user;
   }
 
+  Future<void> sendPasswordReset(String email) =>
+      _repository.sendPasswordReset(email);
+
   /// Fija la sesión tras registrar una cafetería (ya quedó autenticada).
   void applySession(StaffUser user) => state = user;
 

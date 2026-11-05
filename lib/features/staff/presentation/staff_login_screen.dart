@@ -85,6 +85,37 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() =>
+          _error = 'Escribe tu correo arriba para enviarte el enlace.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(staffAuthControllerProvider.notifier)
+          .sendPasswordReset(email);
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Te enviamos un correo a $email para '
+            'restablecer tu contraseña.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      // Mensaje neutral (no revela si la cuenta existe).
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Si $email tiene cuenta, te enviamos el enlace.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -128,6 +159,19 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               decoration: const InputDecoration(
                 labelText: 'Contraseña',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _loading ? null : _forgotPassword,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('¿Olvidaste tu contraseña?',
+                    style: TextStyle(fontSize: 13)),
               ),
             ),
             if (_error != null) ...[

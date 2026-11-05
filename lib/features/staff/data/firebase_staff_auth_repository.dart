@@ -53,6 +53,10 @@ class FirebaseStaffAuthRepository implements StaffAuthRepository {
   }
 
   @override
+  Future<void> sendPasswordReset(String email) =>
+      _auth.sendPasswordResetEmail(email: email.trim());
+
+  @override
   Future<void> signOut() async {
     if (!kIsWeb) await GoogleSignIn().signOut();
     await _auth.signOut();

@@ -5,6 +5,7 @@ abstract interface class StaffAuthRepository {
   StaffUser? get currentUser;
   Future<StaffUser> signIn(String email, String password);
   Future<StaffUser> signInWithGoogle();
+  Future<void> sendPasswordReset(String email);
   Future<void> signOut();
 }
 
@@ -73,6 +74,11 @@ class MockStaffAuthRepository implements StaffAuthRepository {
       role: StaffRole.admin,
     );
     return _current!;
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   @override
