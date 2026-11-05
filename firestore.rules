@@ -1,74 +1,36 @@
 rules_version = '2';
+
+// Reglas de DESARROLLO de Barra.
+//
+// Objetivo: que la app funcione mientras pruebas, SIN que caduquen (el "modo
+// de prueba" de Firestore caduca a los ~30 días y luego bloquea todo).
+//
+// `cafe_payments` NO aparece aquí a propósito: las colecciones sin regla
+// quedan denegadas por defecto, así que los tokens de Mercado Pago solo los
+// toca el backend (Admin SDK, que ignora estas reglas). No lo agregues.
+//
+// ⚠️ ANTES DE PRODUCCIÓN hay que endurecer esto (validar request.auth,
+//    que cada café solo vea lo suyo, etc.).
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
+    match /users/{uid} {
+      allow read, write: if true;
     }
-    // Rol del personal, guardado como custom claim: 'employee' | 'admin'.
-    function role() {
-      return request.auth.token.role;
+    match /cafes/{cafeId} {
+      allow read, write: if true;
+      match /products/{productId} {
+        allow read, write: if true;
+      }
     }
-    function isStaff() {
-      return isSignedIn() && (role() == 'employee' || role() == 'admin');
-    }
-    function isAdmin() {
-      return isSignedIn() && role() == 'admin';
-    }
-    function myBranch() {
-      return request.auth.token.branchId;
-    }
-
-    // Sucursales: lectura para cualquier sesión; escritura solo admin.
-    match /branches/{branchId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Menú: lectura para clientes autenticados; escritura solo admin.
-    match /products/{productId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Ficha del personal (rol y sucursal). Solo lectura del propio/staff.
-    match /staff/{uid} {
-      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
-      allow write: if isAdmin();
-    }
-
-    // Usuarios (clientes): cada quien su perfil, sin tocar campos sensibles.
-    match /users/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId
-        && !request.resource.data.diff(resource.data)
-              .affectedKeys().hasAny(['isSubscriber', 'lastPerkDate']);
-    }
-
-    // Órdenes: admin ve todas; el empleado solo las de SU sucursal; el socio
-    // solo las suyas. Montos/casillero/creación pasan por Cloud Functions.
     match /orders/{orderId} {
-      allow read: if isAdmin()
-        || (isStaff() && resource.data.branchId == myBranch())
-        || (isSignedIn() && resource.data.userId == request.auth.uid);
-      // El empleado de la sucursal puede avanzar a "preparing"; lo demás,
-      // por Cloud Functions.
-      allow update: if isStaff()
-        && resource.data.branchId == myBranch()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-        && request.resource.data.status == 'preparing';
-      allow create, delete: if false;
+      allow read, write: if true;
     }
-
-    // Casilleros y turnos: solo backend/staff (el admin también es staff).
-    match /lockers/{lockerId} {
-      allow read: if isStaff();
-      allow write: if false; // solo backend
+    match /staff/{uid} {
+      allow read, write: if true;
     }
-    match /shifts/{shiftId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
+    match /attendance/{id} {
+      allow read, write: if true;
     }
+    // cafe_payments: sin regla → acceso denegado a clientes (solo backend).
   }
 }
