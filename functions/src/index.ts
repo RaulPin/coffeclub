@@ -340,3 +340,99 @@ export const mpWebhook = onRequest(
     }
   }
 );
+
+// ─── Gestión de empleados (baristas) por parte del dueño ─────────────────────
+
+/** Verifica que el llamante sea dueño de [cafeId] (o admin). */
+async function requireCafeOwner(uid: string, cafeId: string): Promise<void> {
+  const caller = (
+    await admin.firestore().collection("staff").doc(uid).get()
+  ).data();
+  const isOwner = caller?.branchId === cafeId && caller?.ownsCafe === true;
+  const isAdmin = caller?.role === "admin";
+  if (!isOwner && !isAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el dueño puede gestionar empleados."
+    );
+  }
+}
+
+/**
+ * [CAFÉ] El dueño crea una cuenta de empleado (barista). Usa el Admin SDK, así
+ * que NO cierra la sesión del dueño. El empleado queda con `ownsCafe: false`.
+ */
+export const createEmployee = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const name = (request.data?.name as string | undefined)?.trim();
+  const email = (request.data?.email as string | undefined)?.trim();
+  const password = request.data?.password as string | undefined;
+  const cafeId = request.data?.cafeId as string | undefined;
+  if (!name || !email || !password || !cafeId) {
+    throw new HttpsError("invalid-argument", "Faltan datos del empleado.");
+  }
+  if (password.length < 6) {
+    throw new HttpsError(
+      "invalid-argument",
+      "La contraseña debe tener al menos 6 caracteres."
+    );
+  }
+
+  await requireCafeOwner(uid, cafeId);
+
+  let userRecord;
+  try {
+    userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name,
+    });
+  } catch (e) {
+    const code = (e as {code?: string}).code;
+    if (code === "auth/email-already-exists") {
+      throw new HttpsError("already-exists", "Ese correo ya tiene una cuenta.");
+    }
+    if (code === "auth/invalid-email") {
+      throw new HttpsError("invalid-argument", "El correo no es válido.");
+    }
+    throw new HttpsError("internal", "No se pudo crear la cuenta.");
+  }
+
+  await admin.firestore().collection("staff").doc(userRecord.uid).set({
+    name,
+    email,
+    role: "employee",
+    branchId: cafeId,
+    ownsCafe: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {uid: userRecord.uid};
+});
+
+/**
+ * [CAFÉ] El dueño elimina a un empleado (no puede eliminarse a sí mismo ni al
+ * dueño). Borra la cuenta de acceso y su documento de personal.
+ */
+export const deleteEmployee = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const employeeUid = request.data?.employeeUid as string | undefined;
+  const cafeId = request.data?.cafeId as string | undefined;
+  if (!employeeUid || !cafeId) {
+    throw new HttpsError("invalid-argument", "Faltan datos.");
+  }
+  await requireCafeOwner(uid, cafeId);
+
+  const db = admin.firestore();
+  const target = (await db.collection("staff").doc(employeeUid).get()).data();
+  if (!target || target.branchId !== cafeId) {
+    throw new HttpsError("not-found", "Ese empleado no es de tu cafetería.");
+  }
+  if (target.ownsCafe === true) {
+    throw new HttpsError("failed-precondition", "No puedes eliminar al dueño.");
+  }
+
+  await admin.auth().deleteUser(employeeUid).catch(() => {/* ya no existe */});
+  await db.collection("staff").doc(employeeUid).delete();
+  return {ok: true};
+});

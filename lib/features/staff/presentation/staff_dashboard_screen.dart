@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/money.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../branches/data/branch_repository.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../orders/domain/order.dart';
 import '../application/shift_controller.dart';
+import '../application/staff_auth_controller.dart';
 
 /// Estado visual de un pedido (reutiliza la paleta semántica del diseño).
 OrderStage _stageOf(OrderStatus s) => switch (s) {
@@ -30,6 +32,8 @@ class StaffDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final shift = ref.watch(shiftControllerProvider);
     final branchId = shift?.branchId ?? '';
+    final staff = ref.watch(staffAuthControllerProvider);
+    final isOwner = staff?.isOwner ?? false;
 
     final all = ref.watch(allOrdersProvider).valueOrNull ?? const [];
     final branchOrders =
@@ -67,16 +71,24 @@ class StaffDashboardScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: Text(branchName == null ? 'Pedidos' : 'Sucursal $branchName'),
         actions: [
-          IconButton(
-            tooltip: 'Editar cafetería',
-            onPressed: () => context.push('/staff/cafe'),
-            icon: const Icon(Icons.storefront_outlined),
-          ),
-          IconButton(
-            tooltip: 'Menú de la cafetería',
-            onPressed: () => context.push('/staff/menu'),
-            icon: const Icon(Icons.restaurant_menu),
-          ),
+          // Controles solo para el dueño (los baristas no los ven).
+          if (isOwner) ...[
+            IconButton(
+              tooltip: 'Editar cafetería',
+              onPressed: () => context.push('/staff/cafe'),
+              icon: const Icon(Icons.storefront_outlined),
+            ),
+            IconButton(
+              tooltip: 'Menú de la cafetería',
+              onPressed: () => context.push('/staff/menu'),
+              icon: const Icon(Icons.restaurant_menu),
+            ),
+            IconButton(
+              tooltip: 'Empleados',
+              onPressed: () => context.push('/staff/employees'),
+              icon: const Icon(Icons.group_outlined),
+            ),
+          ],
           TextButton.icon(
             onPressed: () => context.push('/staff/close'),
             icon: const Icon(Icons.point_of_sale, size: 18),
@@ -93,6 +105,14 @@ class StaffDashboardScreen extends ConsumerWidget {
           AppSpacing.xxl,
         ),
         children: [
+          if (staff != null && branchId.isNotEmpty) ...[
+            _AttendanceBanner(
+              cafeId: branchId,
+              staffUid: staff.id,
+              staffName: staff.name,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           _StatsRow(
             active: active.length,
             queued: countOf(OrderStatus.pending),
@@ -141,6 +161,108 @@ class StaffDashboardScreen extends ConsumerWidget {
         OrderStatus.ready => 2,
         OrderStatus.pickedUp => 3,
       };
+}
+
+// ─── Attendance (entrada / salida) ───────────────────────────────────────────
+
+class _AttendanceBanner extends ConsumerWidget {
+  const _AttendanceBanner({
+    required this.cafeId,
+    required this.staffUid,
+    required this.staffName,
+  });
+
+  final String cafeId;
+  final String staffUid;
+  final String staffName;
+
+  static String _hhmm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final openAsync = ref.watch(openAttendanceProvider(staffUid));
+    return openAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (rec) {
+        final clockedIn = rec != null;
+        final repo = ref.read(attendanceRepositoryProvider);
+
+        Future<void> toggle() async {
+          try {
+            if (clockedIn) {
+              await repo.clockOut(rec!.id);
+            } else {
+              await repo.clockIn(
+                cafeId: cafeId,
+                staffUid: staffUid,
+                staffName: staffName,
+              );
+            }
+          } catch (_) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No se pudo registrar. Reintenta.')),
+              );
+            }
+          }
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: clockedIn ? AppColors.ink : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            boxShadow: clockedIn ? null : AppColors.cardShadow,
+            border:
+                clockedIn ? null : Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                clockedIn ? Icons.how_to_reg : Icons.login_rounded,
+                size: 20,
+                color: clockedIn ? Colors.white : AppColors.ink,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  clockedIn
+                      ? 'En turno desde las ${_hhmm(rec!.clockInAt)}'
+                      : 'Marca tu entrada para iniciar tu turno',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: clockedIn ? Colors.white : AppColors.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              clockedIn
+                  ? OutlinedButton(
+                      onPressed: toggle,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                        minimumSize: const Size(0, 38),
+                      ),
+                      child: const Text('Marcar salida'),
+                    )
+                  : FilledButton(
+                      onPressed: toggle,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.ink,
+                        minimumSize: const Size(0, 38),
+                      ),
+                      child: const Text('Marcar entrada'),
+                    ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ─── Stats row ──────────────────────────────────────────────────────────────

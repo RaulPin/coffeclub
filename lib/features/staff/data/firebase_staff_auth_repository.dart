@@ -99,6 +99,7 @@ class FirebaseStaffAuthRepository implements StaffAuthRepository {
           ? StaffRole.admin
           : StaffRole.employee,
       branchId: data['branchId'] as String?,
+      isOwner: data['ownsCafe'] as bool? ?? false,
     );
   }
 }

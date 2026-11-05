@@ -9,6 +9,7 @@ import '../../features/cafe_registration/presentation/cafe_registration_screen.d
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/discovery/presentation/discovery_screen.dart';
+import '../../features/employees/presentation/manage_employees_screen.dart';
 import '../../features/menu/presentation/manage_menu_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/orders/presentation/order_tracking_screen.dart';
@@ -128,6 +129,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/staff/cafe',
         builder: (_, __) => const CafeEditScreen(),
+      ),
+      GoRoute(
+        path: '/staff/employees',
+        builder: (_, __) => const ManageEmployeesScreen(),
       ),
       GoRoute(
         path: '/staff/branch/:id',

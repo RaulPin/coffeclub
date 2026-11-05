@@ -89,6 +89,7 @@ class FirebaseCafeRegistrationRepository implements CafeRegistrationRepository {
       email: data.email.trim(),
       role: StaffRole.employee,
       branchId: cafeId,
+      isOwner: true,
     );
   }
 }

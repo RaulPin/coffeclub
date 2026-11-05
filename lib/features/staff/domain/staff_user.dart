@@ -15,6 +15,7 @@ class StaffUser {
     required this.email,
     required this.role,
     this.branchId,
+    this.isOwner = false,
   });
 
   final String id;
@@ -25,5 +26,12 @@ class StaffUser {
   /// Sucursal asignada. `null` para el administrador general.
   final String? branchId;
 
+  /// `true` si es el dueño de la cafetería (puede editar el café, el menú y
+  /// gestionar empleados). Los baristas tienen `false`.
+  final bool isOwner;
+
   bool get isAdmin => role == StaffRole.admin;
+
+  /// Puede administrar la cafetería (datos, menú, empleados).
+  bool get canManageCafe => isAdmin || isOwner;
 }
